@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Enforce and validate fetcher docs entries using Pydantic schema."""
+"""Enforce and validate sink docs entries using Pydantic schema."""
 
 from __future__ import annotations
 
@@ -12,19 +12,9 @@ from pydantic import BaseModel, Field, ValidationError, field_validator
 
 
 ROOT = Path(__file__).resolve().parent.parent
-FETCHERS_DIR = ROOT / "src" / "data_ingestion" / "fetchers"
-DOCS_FILE = ROOT / "docs" / "FETCHER_DOCS.md"
-EXCLUDED_FETCHER_FILES = {"__init__.py", "base.py"}
-
-
-def _collect_fetcher_files() -> list[str]:
-    return sorted(
-        path.name
-        for path in FETCHERS_DIR.glob("*.py")
-        if path.name not in EXCLUDED_FETCHER_FILES
-    )
-
-
+SINKS_DIR = ROOT / "src" / "data_ingestion" / "sinks"
+DOCS_FILE = ROOT / "docs" / "SINK_DOCS.md"
+EXCLUDED_SINK_FILES = {"__init__.py", "base.py"}
 JSON_BLOCK_PATTERN = re.compile(r"```json\s*(.*?)\s*```", re.DOTALL)
 
 
@@ -84,6 +74,14 @@ class DocsEntry(BaseModel):
         return cleaned or None
 
 
+def _collect_sink_files() -> list[str]:
+    return sorted(
+        path.name
+        for path in SINKS_DIR.glob("*.py")
+        if path.name not in EXCLUDED_SINK_FILES
+    )
+
+
 def _collect_doc_blocks(content: str) -> dict[str, DocsEntry]:
     match = JSON_BLOCK_PATTERN.search(content)
     if not match:
@@ -111,7 +109,7 @@ def _collect_doc_blocks(content: str) -> dict[str, DocsEntry]:
 
 
 def main() -> int:
-    fetchers = _collect_fetcher_files()
+    sinks = _collect_sink_files()
     if not DOCS_FILE.is_file():
         print(f"error: missing docs file: {DOCS_FILE}", file=sys.stderr)
         return 1
@@ -123,24 +121,24 @@ def main() -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
-    missing = [name for name in fetchers if name not in documented]
-    orphaned = sorted(name for name in documented.keys() if name not in fetchers)
+    missing = [name for name in sinks if name not in documented]
+    orphaned = sorted(name for name in documented.keys() if name not in sinks)
 
     if missing:
-        print("error: missing fetcher docs blocks for:", file=sys.stderr)
+        print("error: missing sink docs blocks for:", file=sys.stderr)
         for name in missing:
             print(f"  - {name}", file=sys.stderr)
         return 1
 
     if orphaned:
-        print("error: docs blocks found for non-existent fetchers:", file=sys.stderr)
+        print("error: docs blocks found for non-existent sinks:", file=sys.stderr)
         for name in orphaned:
             print(f"  - {name}", file=sys.stderr)
         return 1
 
     print(
-        "Fetcher docs check passed: "
-        f"{len(fetchers)} fetcher(s) documented with valid schema."
+        "Sink docs check passed: "
+        f"{len(sinks)} sink(s) documented with valid schema."
     )
     return 0
 

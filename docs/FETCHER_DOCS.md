@@ -1,112 +1,131 @@
 # Fetcher Docs Contract
 
-Every concrete fetcher in `src/data_ingestion/fetchers/` must have exactly one docs block:
+- `file_name_py` (required, must end with `.py`)
+- `name` (required, non-empty)
+- `required_config` (required, non-empty list)
+- `optional_config` (required, non-empty list)
+- `notes` (optional)
 
-```text
-\{% docs fetcher.py %\}
-Description in plain words, required/optional config, notes.
-\{% enddocs %\}
+```json
+[
+  {
+    "file_name_py": "crossref.py",
+    "name": "Crossref Works Fetcher",
+    "required_config": [
+      "query (unless using date-only mode)"
+    ],
+    "optional_config": [
+      "rows",
+      "max_pages",
+      "start_date",
+      "end_date",
+      "topic_include/topic_exclude",
+      "http"
+    ],
+    "notes": "Fetches scholarly metadata from Crossref and normalizes to NormalizedRecord."
+  },
+  {
+    "file_name_py": "federal_register.py",
+    "name": "Federal Register Fetcher",
+    "required_config": [
+      "query (unless using date-only mode)"
+    ],
+    "optional_config": [
+      "per_page",
+      "max_pages",
+      "start_date",
+      "end_date",
+      "topic_include/topic_exclude",
+      "http"
+    ],
+    "notes": "Fetches U.S. Federal Register notices/documents and maps publication fields."
+  },
+  {
+    "file_name_py": "hackernews.py",
+    "name": "Hacker News Fetcher",
+    "required_config": [
+      "query (unless using date-only mode)"
+    ],
+    "optional_config": [
+      "hits_per_page",
+      "hn_item_type",
+      "use_date_sort",
+      "max_pages",
+      "start_date",
+      "end_date",
+      "http"
+    ],
+    "notes": "Uses Algolia API, with fallback Hacker News item URL when external URL is missing."
+  },
+  {
+    "file_name_py": "newsapi.py",
+    "name": "NewsAPI Fetcher",
+    "required_config": [
+      "query",
+      "api_key (or NEWSAPI_KEY env var)"
+    ],
+    "optional_config": [
+      "page_size",
+      "language",
+      "max_pages",
+      "start_date",
+      "end_date",
+      "topic_include/topic_exclude",
+      "http"
+    ],
+    "notes": "Uses NewsAPI everything endpoint and emits RecordType.NEWS."
+  },
+  {
+    "file_name_py": "openalex.py",
+    "name": "OpenAlex Fetcher",
+    "required_config": [
+      "query (unless using date-only mode)"
+    ],
+    "optional_config": [
+      "per_page",
+      "max_pages",
+      "start_date",
+      "end_date",
+      "topic_include/topic_exclude",
+      "http"
+    ],
+    "notes": "Fetches OpenAlex works and reconstructs abstract text when possible."
+  },
+  {
+    "file_name_py": "website.py",
+    "name": "Website Feed Fetcher",
+    "required_config": [
+      "feed_url or site_url"
+    ],
+    "optional_config": [
+      "query",
+      "target_date",
+      "start_date",
+      "end_date",
+      "max_items",
+      "http"
+    ],
+    "notes": "RSS/Atom fetcher with feed autodiscovery from site HTML alternate links."
+  },
+  {
+    "file_name_py": "website_html.py",
+    "name": "Website HTML Fetcher",
+    "required_config": [
+      "site_url"
+    ],
+    "optional_config": [
+      "list_page_urls",
+      "link_include_patterns",
+      "link_exclude_patterns",
+      "include_list_pages_as_items",
+      "max_candidate_links",
+      "max_items",
+      "query",
+      "start_date",
+      "end_date",
+      "http"
+    ],
+    "notes": "HTML fallback fetcher for non-RSS sites, with article-link extraction and page parsing."
+  }
+]
 ```
-
-The block name must match the fetcher file name exactly (for example `openalex.py`).
-
-{% docs crossref.py %}
-Fetches scholarly metadata records from the Crossref Works API.
-
-Required config:
-- `query` (unless date-only mode/range is used)
-
-Optional config:
-- `rows`, `max_pages`, `start_date`, `end_date`, topic filters, `http`
-
-Notes:
-- Response records are normalized to `NormalizedRecord`.
-- Request and parse failures are raised as `FetcherError`.
-{% enddocs %}
-
-{% docs federal_register.py %}
-Fetches U.S. Federal Register documents and notices.
-
-Required config:
-- `query` (unless date-only mode/range is used)
-
-Optional config:
-- `per_page`, `max_pages`, `start_date`, `end_date`, topic filters, `http`
-
-Notes:
-- Uses publication date fields from Federal Register payloads.
-- Produces `RecordType.NEWS`-style normalized output.
-{% enddocs %}
-
-{% docs hackernews.py %}
-Fetches stories/comments from Hacker News through the Algolia API.
-
-Required config:
-- `query` (unless date-only mode/range is used)
-
-Optional config:
-- `hits_per_page`, `hn_item_type`, `use_date_sort`, `max_pages`, dates, `http`
-
-Notes:
-- Falls back to Hacker News item URL when source URL is missing.
-- Tag metadata is used for topic extraction when available.
-{% enddocs %}
-
-{% docs newsapi.py %}
-Fetches news articles from NewsAPI `/v2/everything`.
-
-Required config:
-- `query`
-- `api_key` (or `NEWSAPI_KEY` environment variable)
-
-Optional config:
-- `language`, `page_size`, `max_pages`, dates, topic filters, `http`
-
-Notes:
-- API status errors are surfaced as `FetcherError`.
-- Emits `RecordType.NEWS`.
-{% enddocs %}
-
-{% docs openalex.py %}
-Fetches academic works from OpenAlex.
-
-Required config:
-- `query` (unless date-only mode/range is used)
-
-Optional config:
-- `per_page`, `max_pages`, dates, topic filters, `http`
-
-Notes:
-- Includes abstract reconstruction from OpenAlex index fields.
-- Uses OpenAlex concept/topic metadata when present.
-{% enddocs %}
-
-{% docs website.py %}
-Fetches website updates from RSS/Atom feeds.
-
-Required config:
-- At least one of `feed_url` or `site_url`
-
-Optional config:
-- `query`, `target_date`, `start_date`, `end_date`, `max_items`, `http`
-
-Notes:
-- Supports feed autodiscovery via `<link rel="alternate" ...>` in site HTML.
-- Intended for feed-based sources only.
-{% enddocs %}
-
-{% docs website_html.py %}
-Fetches website updates directly from HTML pages when RSS/Atom is not available.
-
-Required config:
-- `site_url`
-
-Optional config:
-- `list_page_urls`, `link_include_patterns`, `link_exclude_patterns`
-- `include_list_pages_as_items`, `max_candidate_links`, `max_items`
-- `query`, `start_date`, `end_date`, `http`
-
-Notes:
-- Extracts article URLs from list pages and parses article HTML metadata/content.
-- Can ingest list pages directly for changelog/release-notes style pages.
-{% enddocs %}

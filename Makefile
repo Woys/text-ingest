@@ -19,7 +19,8 @@ lint:           ## check formatting and lint without mutations
 	ruff check $(SRC)
 
 docs-check:     ## ensure fetcher docs blocks exist for every fetcher
-	$(PYTHON) scripts/check_fetcher_docs.py
+	PYDANTIC_DISABLE_PLUGINS=__all__ $(PYTHON) scripts/check_fetcher_docs.py
+	PYDANTIC_DISABLE_PLUGINS=__all__ $(PYTHON) scripts/check_sink_docs.py
 
 typecheck:      ## run mypy static analysis
 	mypy src
