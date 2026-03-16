@@ -2,7 +2,7 @@
 
 A Python ingestion library that collects data from multiple APIs/websites and writes normalized records to JSONL, CSV, or Parquet.
 
-All fetchers map to the same `NormalizedRecord` schema so outputs can be unified downstream.
+All fetchers ingest into a single model: `NormalizedRecord` ([models.py](/home/daniilmiheev/p/de/textDump/data_ingestion/src/data_ingestion/models.py:16)).
 
 ## Install
 
@@ -53,7 +53,7 @@ See full config contracts in [docs/FETCHER_DOCS.md](/home/daniilmiheev/p/de/text
 
 ## Unified Output Schema
 
-Each fetcher emits `NormalizedRecord` fields such as:
+Every fetcher emits the same fields defined in `NormalizedRecord` ([models.py](/home/daniilmiheev/p/de/textDump/data_ingestion/src/data_ingestion/models.py:16)):
 
 - `source`
 - `external_id`
@@ -66,6 +66,7 @@ Each fetcher emits `NormalizedRecord` fields such as:
 - `full_text_url`
 - `topic`
 - `record_type`
+- `fetched_at`
 - `raw_payload`
 
 ## Sinks
