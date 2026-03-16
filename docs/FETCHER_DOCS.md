@@ -19,6 +19,7 @@
       "max_pages",
       "start_date",
       "end_date",
+      "languages",
       "topic_include/topic_exclude",
       "http"
     ],
@@ -35,6 +36,7 @@
       "max_pages",
       "start_date",
       "end_date",
+      "languages",
       "topic_include/topic_exclude",
       "http"
     ],
@@ -53,6 +55,7 @@
       "max_pages",
       "start_date",
       "end_date",
+      "languages",
       "http"
     ],
     "notes": "Uses Algolia API, with fallback Hacker News item URL when external URL is missing."
@@ -70,6 +73,7 @@
       "max_pages",
       "start_date",
       "end_date",
+      "languages",
       "topic_include/topic_exclude",
       "http"
     ],
@@ -86,6 +90,7 @@
       "max_pages",
       "start_date",
       "end_date",
+      "languages",
       "topic_include/topic_exclude",
       "http"
     ],
@@ -102,6 +107,7 @@
       "target_date",
       "start_date",
       "end_date",
+      "languages",
       "max_items",
       "http"
     ],
@@ -123,6 +129,7 @@
       "query",
       "start_date",
       "end_date",
+      "languages",
       "http"
     ],
     "notes": "HTML fallback fetcher for non-RSS sites, with article-link extraction and page parsing."

@@ -176,3 +176,38 @@ def test_raises_on_api_error(fake_response_factory, monkeypatch) -> None:
 
     with pytest.raises(FetcherError, match="apiKeyInvalid"):
         list(fetcher.fetch_all())
+
+
+def test_fetch_pages_requests_all_configured_languages(monkeypatch) -> None:
+    monkeypatch.setenv("NEWSAPI_KEY", "test_key")
+    fetcher = NewsApiFetcher(
+        NewsApiConfig(
+            query="AI",
+            max_pages=1,
+            page_size=20,
+            languages=["en", "fr"],
+        )
+    )
+
+    called_languages: list[str] = []
+
+    class _Resp:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._payload
+
+    def fake_get(url, params, timeout):
+        del url, timeout
+        called_languages.append(params["language"])
+        article = _make_article(url=f"https://example.com/{params['language']}")
+        return _Resp({"status": "ok", "totalResults": 1, "articles": [article]})
+
+    monkeypatch.setattr(fetcher.session, "get", fake_get)
+    pages = list(fetcher.fetch_pages())
+    assert len(pages) == 2
+    assert called_languages == ["en", "fr"]

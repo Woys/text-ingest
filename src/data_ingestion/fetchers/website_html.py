@@ -65,6 +65,16 @@ def _strip_html(value: str | None) -> str | None:
     return text or None
 
 
+def _extract_html_lang(page_html: str) -> str | None:
+    match = re.search(
+        r'(?is)<html[^>]+lang\s*=\s*["\']([^"\']+)["\']',
+        page_html,
+    )
+    if not match:
+        return None
+    return _clean_text(match.group(1))
+
+
 @register_fetcher("website_html")
 class WebsiteHtmlFetcher(BaseFetcher):
     """Fetches article pages from website HTML when feeds are unavailable."""
@@ -239,6 +249,12 @@ class WebsiteHtmlFetcher(BaseFetcher):
             raw_payload=item,
         )
 
+    def extract_language(self, item: dict[str, Any]) -> str | None:
+        raw = item.get("language")
+        if isinstance(raw, str):
+            return raw
+        return None
+
     def fetch_pages(self) -> Iterator[list[dict[str, Any]]]:
         list_pages = self.config.list_page_urls or [self.config.site_url]
 
@@ -307,6 +323,7 @@ class WebsiteHtmlFetcher(BaseFetcher):
                 {
                     "url": response.url,
                     "title": title,
+                    "language": _extract_html_lang(response.text),
                     "published_raw": published_raw,
                     "summary": summary,
                     "content": content,

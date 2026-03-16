@@ -14,6 +14,7 @@ MAX_PAGES = 5
 OUTPUT_PATH = "data/all_sources_ingestion.csv"
 START_DATE = None
 END_DATE = None
+LANGUAGES: list[str] = []  # e.g. ["en", "fr"]
 INCLUDE_NEWSAPI = False
 
 TRANSFORM_SPEC: dict[str, Any] = {
@@ -50,6 +51,8 @@ def with_dates(config: dict[str, Any]) -> dict[str, Any]:
         config["start_date"] = START_DATE
     if END_DATE is not None:
         config["end_date"] = END_DATE
+    if LANGUAGES:
+        config["languages"] = LANGUAGES
     return config
 
 

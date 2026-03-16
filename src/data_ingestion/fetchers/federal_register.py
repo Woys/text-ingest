@@ -120,3 +120,7 @@ class FederalRegisterFetcher(BaseFetcher):
 
             if page >= payload.get("total_pages", 0):
                 return
+
+    def extract_language(self, item: dict[str, Any]) -> str | None:
+        del item
+        return "en"

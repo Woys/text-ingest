@@ -97,6 +97,12 @@ class OpenAlexFetcher(BaseFetcher):
             raw_payload=item,
         )
 
+    def extract_language(self, item: dict[str, Any]) -> str | None:
+        raw = item.get("language")
+        if isinstance(raw, str):
+            return raw
+        return None
+
     def fetch_pages(self) -> Iterator[list[dict[str, Any]]]:
         params: dict[str, Any] = {
             "per-page": self.config.per_page,

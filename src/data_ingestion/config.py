@@ -27,6 +27,7 @@ class BaseSourceConfig(BaseModel):
     max_pages: int = Field(default=3, ge=1, le=100)
     start_date: date | None = None
     end_date: date | None = None
+    languages: list[str] = Field(default_factory=list)
 
     search_mode: Literal["exact", "broad", "fuzzy_local", "date_only"] = "broad"
     date_mode: Literal["publication", "update"] = "publication"
@@ -56,6 +57,31 @@ class BaseSourceConfig(BaseModel):
         if isinstance(value, str):
             return [value]
         return list(value)
+
+    @field_validator("languages", mode="before")
+    @classmethod
+    def _coerce_languages(cls, value: Any) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return [value]
+        return list(value)
+
+    @field_validator("languages")
+    @classmethod
+    def _normalize_languages(cls, value: list[str]) -> list[str]:
+        cleaned: list[str] = []
+        seen: set[str] = set()
+        for language in value:
+            normalized = language.strip().lower()
+            if not normalized:
+                continue
+            normalized = normalized.replace("_", "-")
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            cleaned.append(normalized)
+        return cleaned
 
     @field_validator("topic_include", "topic_exclude")
     @classmethod

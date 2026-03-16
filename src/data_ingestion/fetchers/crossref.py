@@ -147,3 +147,9 @@ class CrossRefFetcher(BaseFetcher):
                 return
 
             yield items
+
+    def extract_language(self, item: dict[str, Any]) -> str | None:
+        raw = item.get("language")
+        if isinstance(raw, str):
+            return raw
+        return None

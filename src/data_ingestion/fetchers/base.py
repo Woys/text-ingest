@@ -34,10 +34,38 @@ class BaseFetcher(ABC):
     def fetch_pages(self) -> Iterator[list[dict[str, Any]]]:
         """Yield raw API page payload items with minimal processing."""
 
+    def extract_language(self, item: dict[str, Any]) -> str | None:
+        """Return language code for *item* when available."""
+        return None
+
+    @staticmethod
+    def _normalize_language_code(raw: str | None) -> str | None:
+        if raw is None:
+            return None
+        cleaned = raw.strip().lower().replace("_", "-")
+        return cleaned or None
+
+    def _matches_language_filter(self, item: dict[str, Any]) -> bool:
+        configured = getattr(self.config, "languages", [])
+        if not configured:
+            return True
+
+        item_language = self._normalize_language_code(self.extract_language(item))
+        if item_language is None:
+            return False
+
+        if item_language in configured:
+            return True
+
+        primary = item_language.split("-", 1)[0]
+        return primary in configured
+
     def fetch_raw(self) -> Iterator[dict[str, Any]]:
         """Yield raw records from all pages without normalization."""
         for items in self.fetch_pages():
-            yield from items
+            for item in items:
+                if self._matches_language_filter(item):
+                    yield item
 
     def fetch_all(self) -> Iterator[NormalizedRecord]:
         """Yield normalized records (legacy convenience path)."""

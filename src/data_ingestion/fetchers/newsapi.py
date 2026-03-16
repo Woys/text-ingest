@@ -59,6 +59,11 @@ class NewsApiFetcher(BaseFetcher):
             return source_name.strip()
         return None
 
+    def _request_languages(self) -> list[str]:
+        if self.config.languages:
+            return self.config.languages
+        return [self.config.language]
+
     def normalize(self, item: dict[str, Any]) -> NormalizedRecord:
         author_raw: str | None = item.get("author")
         authors = [author_raw.strip()] if author_raw and author_raw.strip() else []
@@ -84,55 +89,74 @@ class NewsApiFetcher(BaseFetcher):
             raw_payload=item,
         )
 
+    def extract_language(self, item: dict[str, Any]) -> str | None:
+        raw = item.get("language") or item.get("_requested_language")
+        if isinstance(raw, str):
+            return raw
+        return None
+
     def fetch_pages(self) -> Iterator[list[dict[str, Any]]]:
-        for page in range(1, self.config.max_pages + 1):
-            params: dict[str, Any] = {
-                "q": self.config.query,
-                "language": self.config.language,
-                "pageSize": self.config.page_size,
-                "page": page,
-                "apiKey": self.config.api_key,
-            }
-            if self.config.start_date is not None:
-                params["from"] = self.config.start_date.isoformat()
-            if self.config.end_date is not None:
-                params["to"] = self.config.end_date.isoformat()
+        for language in self._request_languages():
+            for page in range(1, self.config.max_pages + 1):
+                params: dict[str, Any] = {
+                    "q": self.config.query,
+                    "language": language,
+                    "pageSize": self.config.page_size,
+                    "page": page,
+                    "apiKey": self.config.api_key,
+                }
+                if self.config.start_date is not None:
+                    params["from"] = self.config.start_date.isoformat()
+                if self.config.end_date is not None:
+                    params["to"] = self.config.end_date.isoformat()
 
-            try:
-                response = self.session.get(
-                    self.BASE_URL,
-                    params=params,
-                    timeout=self.config.http.timeout_seconds,
-                )
-                response.raise_for_status()
-                payload: dict[str, Any] = response.json()
-            except requests.RequestException as exc:
-                raise FetcherError(
-                    f"NewsAPI request failed on page {page}: {exc}"
-                ) from exc
-            except ValueError as exc:
-                raise FetcherError(
-                    f"NewsAPI returned invalid JSON on page {page}"
-                ) from exc
+                try:
+                    response = self.session.get(
+                        self.BASE_URL,
+                        params=params,
+                        timeout=self.config.http.timeout_seconds,
+                    )
+                    response.raise_for_status()
+                    payload: dict[str, Any] = response.json()
+                except requests.RequestException as exc:
+                    raise FetcherError(
+                        f"NewsAPI request failed on page {page}: {exc}"
+                    ) from exc
+                except ValueError as exc:
+                    raise FetcherError(
+                        f"NewsAPI returned invalid JSON on page {page}"
+                    ) from exc
 
-            if payload.get("status") != "ok":
-                raise FetcherError(
-                    f"NewsAPI error on page {page}: "
-                    f"{payload.get('code')} — {payload.get('message')}"
-                )
+                if payload.get("status") != "ok":
+                    raise FetcherError(
+                        f"NewsAPI error on page {page}: "
+                        f"{payload.get('code')} — {payload.get('message')}"
+                    )
 
-            articles: list[dict[str, Any]] = payload.get("articles", [])
-            if not articles:
-                logger.info("NewsAPI: no articles on page %d — stopping", page)
-                return
+                raw_articles: list[dict[str, Any]] = payload.get("articles", [])
+                if not raw_articles:
+                    logger.info(
+                        "NewsAPI: no articles for language=%s on page %d — stopping",
+                        language,
+                        page,
+                    )
+                    break
 
-            yield articles
+                articles: list[dict[str, Any]] = []
+                for article in raw_articles:
+                    annotated = dict(article)
+                    annotated["_requested_language"] = language
+                    articles.append(annotated)
 
-            if len(articles) < self.config.page_size:
-                logger.info(
-                    "NewsAPI: partial page (%d < %d) — stopping after page %d",
-                    len(articles),
-                    self.config.page_size,
-                    page,
-                )
-                return
+                yield articles
+
+                if len(raw_articles) < self.config.page_size:
+                    logger.info(
+                        "NewsAPI: partial page (%d < %d) for language=%s "
+                        "— stopping after page %d",
+                        len(raw_articles),
+                        self.config.page_size,
+                        language,
+                        page,
+                    )
+                    break

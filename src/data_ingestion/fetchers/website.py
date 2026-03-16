@@ -183,6 +183,7 @@ class WebsiteFetcher(BaseFetcher):
         *,
         feed_url: str,
         channel_title: str | None,
+        channel_language: str | None,
     ) -> dict[str, Any]:
         categories = [_clean_text(cat.text) for cat in item.findall("category")]
         cleaned_categories = [cat for cat in categories if cat]
@@ -194,6 +195,7 @@ class WebsiteFetcher(BaseFetcher):
         return {
             "feed_url": feed_url,
             "feed_title": channel_title,
+            "language": channel_language,
             "title": _extract_text(item.find("title")),
             "link": _extract_text(item.find("link")),
             "guid": _extract_text(item.find("guid")),
@@ -211,6 +213,7 @@ class WebsiteFetcher(BaseFetcher):
         *,
         feed_url: str,
         channel_title: str | None,
+        channel_language: str | None,
     ) -> dict[str, Any]:
         link = None
         for link_el in entry.findall(f"{{{ATOM_NS}}}link"):
@@ -235,6 +238,10 @@ class WebsiteFetcher(BaseFetcher):
         return {
             "feed_url": feed_url,
             "feed_title": channel_title,
+            "language": _clean_text(
+                entry.get("{http://www.w3.org/XML/1998/namespace}lang")
+            )
+            or channel_language,
             "title": _extract_text(entry.find(f"{{{ATOM_NS}}}title")),
             "link": link,
             "guid": _extract_text(entry.find(f"{{{ATOM_NS}}}id")),
@@ -260,24 +267,30 @@ class WebsiteFetcher(BaseFetcher):
             if channel is None:
                 return []
             channel_title = _extract_text(channel.find("title"))
+            channel_language = _extract_text(channel.find("language"))
             items = channel.findall("item")
             return [
                 self._rss_item_to_dict(
                     item,
                     feed_url=feed_url,
                     channel_title=channel_title,
+                    channel_language=channel_language,
                 )
                 for item in items
             ]
 
         if root_name == "feed":
             channel_title = _extract_text(root.find(f"{{{ATOM_NS}}}title"))
+            channel_language = _clean_text(
+                root.get("{http://www.w3.org/XML/1998/namespace}lang")
+            )
             entries = root.findall(f"{{{ATOM_NS}}}entry")
             return [
                 self._atom_entry_to_dict(
                     entry,
                     feed_url=feed_url,
                     channel_title=channel_title,
+                    channel_language=channel_language,
                 )
                 for entry in entries
             ]
@@ -337,6 +350,12 @@ class WebsiteFetcher(BaseFetcher):
             record_type=RecordType.NEWS,
             raw_payload=item,
         )
+
+    def extract_language(self, item: dict[str, Any]) -> str | None:
+        raw = item.get("language")
+        if isinstance(raw, str):
+            return raw
+        return None
 
     def fetch_pages(self) -> Iterator[list[dict[str, Any]]]:
         feed_url = self._resolve_feed_url()

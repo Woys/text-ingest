@@ -28,16 +28,28 @@ TRANSFORM_SPEC: dict[str, Any] = {
     ]
 }
 
+QUERY = "data engineering"
+MAX_PAGES = 1
+LANGUAGES: list[str] = []  # e.g. ["en"]
+
+
+def with_filters(config: dict[str, Any]) -> dict[str, Any]:
+    if LANGUAGES:
+        config["languages"] = LANGUAGES
+    return config
+
 
 def main() -> None:
     fetcher_specs = [
         {
             "source": "openalex",
-            "config": {"query": "data engineering", "max_pages": 1, "per_page": 5},
+            "config": with_filters(
+                {"query": QUERY, "max_pages": MAX_PAGES, "per_page": 5}
+            ),
         },
         {
             "source": "crossref",
-            "config": {"query": "data engineering", "max_pages": 1, "rows": 5},
+            "config": with_filters({"query": QUERY, "max_pages": MAX_PAGES, "rows": 5}),
         },
     ]
 

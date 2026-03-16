@@ -166,3 +166,7 @@ class HackerNewsFetcher(BaseFetcher):
             if page >= nb_pages - 1:
                 logger.info("HackerNews: reached last available page %d", page)
                 return
+
+    def extract_language(self, item: dict[str, Any]) -> str | None:
+        del item
+        return "en"

@@ -85,6 +85,11 @@ def test_topic_filters_are_normalized() -> None:
     assert config.topic_exclude == ["politics"]
 
 
+def test_languages_are_normalized() -> None:
+    config = OpenAlexConfig(query="test", languages=[" EN ", "en-us", "en_US", ""])
+    assert config.languages == ["en", "en-us"]
+
+
 def test_topic_filters_reject_overlap() -> None:
     with pytest.raises(ValidationError, match="overlap"):
         OpenAlexConfig(
