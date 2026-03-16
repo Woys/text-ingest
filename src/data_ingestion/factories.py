@@ -7,11 +7,18 @@ from typing import TYPE_CHECKING, Any
 from data_ingestion.config import FetcherSpec
 from data_ingestion.fetchers import crossref as _crossref  # noqa: F401
 from data_ingestion.fetchers import federal_register as _federal_register  # noqa: F401
+from data_ingestion.fetchers import github as _github  # noqa: F401
+from data_ingestion.fetchers import googlenews as _googlenews  # noqa: F401
+from data_ingestion.fetchers import guardian as _guardian  # noqa: F401
 from data_ingestion.fetchers import hackernews as _hackernews  # noqa: F401
 from data_ingestion.fetchers import newsapi as _newsapi  # noqa: F401
 from data_ingestion.fetchers import openalex as _openalex  # noqa: F401
+from data_ingestion.fetchers import openlibrary as _openlibrary  # noqa: F401
+from data_ingestion.fetchers import reddit as _reddit  # noqa: F401
+from data_ingestion.fetchers import stackexchange as _stackexchange  # noqa: F401
 from data_ingestion.fetchers import website as _website  # noqa: F401
 from data_ingestion.fetchers import website_html as _website_html  # noqa: F401
+from data_ingestion.fetchers import wikipedia as _wikipedia  # noqa: F401
 from data_ingestion.logging_utils import get_logger
 from data_ingestion.registry import get_fetcher_class
 

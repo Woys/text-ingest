@@ -169,6 +169,67 @@ class FederalRegisterConfig(BaseSourceConfig):
     http: HttpClientConfig = Field(default_factory=HttpClientConfig)
 
 
+class WikipediaConfig(BaseSourceConfig):
+    wiki_language: str = Field(default="en", min_length=2, max_length=10)
+    page_size: int = Field(default=20, ge=1, le=50)
+    http: HttpClientConfig = Field(default_factory=HttpClientConfig)
+
+
+class RedditConfig(BaseSourceConfig):
+    subreddit: str | None = None
+    sort: Literal["new", "hot", "top", "relevance"] = "new"
+    page_size: int = Field(default=25, ge=1, le=100)
+    http: HttpClientConfig = Field(default_factory=HttpClientConfig)
+
+
+class GitHubConfig(BaseSourceConfig):
+    per_page: int = Field(default=25, ge=1, le=100)
+    sort: Literal["updated", "stars", "forks"] = "updated"
+    github_token: str | None = None
+    http: HttpClientConfig = Field(default_factory=HttpClientConfig)
+
+    @field_validator("github_token", mode="before")
+    @classmethod
+    def _resolve_github_token(cls, value: str | None) -> str | None:
+        if value is None:
+            value = os.getenv("GITHUB_TOKEN")
+        return value
+
+
+class StackExchangeConfig(BaseSourceConfig):
+    site: str = Field(default="stackoverflow", min_length=2)
+    page_size: int = Field(default=25, ge=1, le=100)
+    sort: Literal["activity", "creation", "votes"] = "activity"
+    http: HttpClientConfig = Field(default_factory=HttpClientConfig)
+
+
+class OpenLibraryConfig(BaseSourceConfig):
+    page_size: int = Field(default=25, ge=1, le=100)
+    http: HttpClientConfig = Field(default_factory=HttpClientConfig)
+
+
+class GoogleNewsConfig(BaseSourceConfig):
+    hl: str = Field(default="en-US", min_length=2, max_length=20)
+    gl: str = Field(default="US", min_length=2, max_length=10)
+    ceid: str = Field(default="US:en", min_length=2, max_length=20)
+    page_size: int = Field(default=50, ge=1, le=1000)
+    http: HttpClientConfig = Field(default_factory=HttpClientConfig)
+
+
+class GuardianConfig(BaseSourceConfig):
+    page_size: int = Field(default=25, ge=1, le=200)
+    api_key: str = Field(default="test", min_length=1)
+    http: HttpClientConfig = Field(default_factory=HttpClientConfig)
+
+    @field_validator("api_key", mode="before")
+    @classmethod
+    def _resolve_guardian_api_key(cls, value: str | None) -> str:
+        if value is None:
+            value = os.getenv("GUARDIAN_API_KEY", "test")
+        cleaned = value.strip()
+        return cleaned or "test"
+
+
 class WebsiteConfig(BaseSourceConfig):
     feed_url: str | None = None
     site_url: str | None = None
@@ -266,6 +327,13 @@ class FetcherSpec(BaseModel):
         "newsapi",
         "hackernews",
         "federalregister",
+        "wikipedia",
+        "reddit",
+        "github",
+        "stackexchange",
+        "openlibrary",
+        "googlenews",
+        "guardian",
         "website",
         "website_html",
     ]

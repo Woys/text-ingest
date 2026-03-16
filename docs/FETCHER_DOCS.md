@@ -43,6 +43,60 @@
     "notes": "Fetches U.S. Federal Register notices/documents and maps publication fields."
   },
   {
+    "file_name_py": "github.py",
+    "name": "GitHub Repository Fetcher",
+    "required_config": [
+      "query"
+    ],
+    "optional_config": [
+      "per_page",
+      "sort",
+      "github_token",
+      "max_pages",
+      "start_date",
+      "end_date",
+      "languages",
+      "http"
+    ],
+    "notes": "Fetches public repository metadata from the GitHub Search API."
+  },
+  {
+    "file_name_py": "googlenews.py",
+    "name": "Google News RSS Fetcher",
+    "required_config": [
+      "query"
+    ],
+    "optional_config": [
+      "hl",
+      "gl",
+      "ceid",
+      "page_size",
+      "max_pages",
+      "start_date",
+      "end_date",
+      "languages",
+      "http"
+    ],
+    "notes": "Fetches Google News RSS search items and maps them to normalized news records."
+  },
+  {
+    "file_name_py": "guardian.py",
+    "name": "Guardian Content API Fetcher",
+    "required_config": [
+      "query"
+    ],
+    "optional_config": [
+      "api_key",
+      "page_size",
+      "max_pages",
+      "start_date",
+      "end_date",
+      "languages",
+      "http"
+    ],
+    "notes": "Fetches article metadata from The Guardian Content API."
+  },
+  {
     "file_name_py": "hackernews.py",
     "name": "Hacker News Fetcher",
     "required_config": [
@@ -80,6 +134,22 @@
     "notes": "Uses NewsAPI everything endpoint and emits RecordType.NEWS."
   },
   {
+    "file_name_py": "openlibrary.py",
+    "name": "Open Library Fetcher",
+    "required_config": [
+      "query"
+    ],
+    "optional_config": [
+      "page_size",
+      "max_pages",
+      "start_date",
+      "end_date",
+      "languages",
+      "http"
+    ],
+    "notes": "Fetches book metadata and publication signals from Open Library search."
+  },
+  {
     "file_name_py": "openalex.py",
     "name": "OpenAlex Fetcher",
     "required_config": [
@@ -95,6 +165,42 @@
       "http"
     ],
     "notes": "Fetches OpenAlex works and reconstructs abstract text when possible."
+  },
+  {
+    "file_name_py": "reddit.py",
+    "name": "Reddit Search Fetcher",
+    "required_config": [
+      "query"
+    ],
+    "optional_config": [
+      "subreddit",
+      "sort",
+      "page_size",
+      "max_pages",
+      "start_date",
+      "end_date",
+      "languages",
+      "http"
+    ],
+    "notes": "Fetches Reddit post discussions via public JSON search endpoints."
+  },
+  {
+    "file_name_py": "stackexchange.py",
+    "name": "Stack Exchange Fetcher",
+    "required_config": [
+      "query"
+    ],
+    "optional_config": [
+      "site",
+      "sort",
+      "page_size",
+      "max_pages",
+      "start_date",
+      "end_date",
+      "languages",
+      "http"
+    ],
+    "notes": "Fetches Q&A metadata from Stack Exchange APIs (for example Stack Overflow)."
   },
   {
     "file_name_py": "website.py",
@@ -133,6 +239,23 @@
       "http"
     ],
     "notes": "HTML fallback fetcher for non-RSS sites, with article-link extraction and page parsing."
+  },
+  {
+    "file_name_py": "wikipedia.py",
+    "name": "Wikipedia Fetcher",
+    "required_config": [
+      "query"
+    ],
+    "optional_config": [
+      "wiki_language",
+      "page_size",
+      "max_pages",
+      "start_date",
+      "end_date",
+      "languages",
+      "http"
+    ],
+    "notes": "Searches Wikipedia and enriches results with summary extracts."
   }
 ]
 ```

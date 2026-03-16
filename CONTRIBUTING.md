@@ -76,8 +76,8 @@ Update docs whenever behavior changes.
 At minimum, review:
 
 - `README.md`
-- `docs/API_CONTRACT.md` (if contract semantics changed)
-- `docs/OPERATIONS.md` (if deployment/runtime behavior changed)
+- `assets/API_CONTRACT.md` (if contract semantics changed)
+- `assets/OPERATIONS.md` (if deployment/runtime behavior changed)
 - `CHANGELOG.md`
 
 ## Changelog Policy

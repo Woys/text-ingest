@@ -32,6 +32,13 @@ def test_fetcher_spec_accepts_all_sources() -> None:
         "openalex": {"query": "test"},
         "crossref": {"query": "test"},
         "newsapi": {"query": "test", "api_key": "k"},
+        "wikipedia": {"query": "test"},
+        "reddit": {"query": "test"},
+        "github": {"query": "test"},
+        "stackexchange": {"query": "test"},
+        "openlibrary": {"query": "test"},
+        "googlenews": {"query": "test"},
+        "guardian": {"query": "test"},
         "website": {"site_url": "https://example.com"},
         "website_html": {"site_url": "https://example.com"},
     }

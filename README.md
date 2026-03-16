@@ -19,13 +19,13 @@ pip install -e ".[dev]"
 Comprehensive documentation lives in `docs/`:
 
 - Documentation index: `docs/DOCUMENTATION.md`
-- Architecture: `docs/ARCHITECTURE.md`
-- API contract and compatibility: `docs/API_CONTRACT.md`
-- Operations and deployment: `docs/OPERATIONS.md`
-- Release process: `docs/RELEASE_PROCESS.md`
-- Open source standards: `docs/OPEN_SOURCE_STANDARDS.md`
-- Governance: `docs/GOVERNANCE.md`
-- Testing and quality strategy: `docs/TESTING_AND_QUALITY.md`
+- Architecture: `assets/ARCHITECTURE.md`
+- API contract and compatibility: `assets/API_CONTRACT.md`
+- Operations and deployment: `assets/OPERATIONS.md`
+- Release process: `assets/RELEASE_PROCESS.md`
+- Open source standards: `assets/OPEN_SOURCE_STANDARDS.md`
+- Governance: `assets/GOVERNANCE.md`
+- Testing and quality strategy: `assets/TESTING_AND_QUALITY.md`
 
 Repository policies:
 
@@ -149,7 +149,7 @@ mdi-run run \
 - Set `NEWSAPI_KEY` if `newsapi` is used.
 - Ensure output/checkpoint directories are writable.
 
-For production practices (monitoring, checkpoints, failure recovery), see `docs/OPERATIONS.md`.
+For production practices (monitoring, checkpoints, failure recovery), see `assets/OPERATIONS.md`.
 
 ## Notebooks
 
