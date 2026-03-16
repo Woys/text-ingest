@@ -2,7 +2,7 @@
 
 A Python ingestion library that collects data from multiple APIs/websites and writes normalized records to JSONL, CSV, or Parquet.
 
-All fetchers ingest into a single model: `NormalizedRecord` ([models.py](/home/daniilmiheev/p/de/textDump/data_ingestion/src/data_ingestion/models.py:16)).
+All fetchers ingest into a single model: `NormalizedRecord` ([src/data_ingestion/models.py](src/data_ingestion/models.py)).
 
 ## Install
 
@@ -49,11 +49,11 @@ print(summary.model_dump())
 - `googlenews`
 - `guardian`
 
-See full config contracts in [docs/FETCHER_DOCS.md](/home/daniilmiheev/p/de/textDump/data_ingestion/docs/FETCHER_DOCS.md).
+See full config contracts in [docs/FETCHER_DOCS.md](docs/FETCHER_DOCS.md).
 
 ## Unified Output Schema
 
-Every fetcher emits the same fields defined in `NormalizedRecord` ([models.py](/home/daniilmiheev/p/de/textDump/data_ingestion/src/data_ingestion/models.py:16)):
+Every fetcher emits the same fields defined in `NormalizedRecord` ([src/data_ingestion/models.py](src/data_ingestion/models.py)):
 
 - `source`
 - `external_id`
@@ -76,7 +76,7 @@ Every fetcher emits the same fields defined in `NormalizedRecord` ([models.py](/
 - Parquet
 - Full-text JSONL
 
-Sink contracts: [docs/SINK_DOCS.md](/home/daniilmiheev/p/de/textDump/data_ingestion/docs/SINK_DOCS.md)
+Sink contracts: [docs/SINK_DOCS.md](docs/SINK_DOCS.md)
 
 ## Examples
 
@@ -110,7 +110,7 @@ make test
 
 ## Documentation
 
-- Index: [docs/DOCUMENTATION.md](/home/daniilmiheev/p/de/textDump/data_ingestion/docs/DOCUMENTATION.md)
+- Index: [docs/DOCUMENTATION.md](docs/DOCUMENTATION.md)
 - DLT source pack: `assets/DLT_SOURCES.md`
 - Architecture/API/operations/release docs: `assets/`
 
