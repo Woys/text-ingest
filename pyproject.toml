@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "text-ingest"
-version = "0.2.0"
+version = "0.3.0"
 description = "Streaming multi-source text ingestion library with a unified output schema."
 readme = "README.md"
 requires-python = ">=3.10"

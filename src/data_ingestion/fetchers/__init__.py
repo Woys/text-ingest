@@ -6,6 +6,8 @@ from .federal_register import FederalRegisterFetcher
 from .hackernews import HackerNewsFetcher
 from .newsapi import NewsApiFetcher
 from .openalex import OpenAlexFetcher
+from .website import WebsiteFetcher
+from .website_html import WebsiteHtmlFetcher
 
 __all__ = [
     "BaseFetcher",
@@ -14,4 +16,6 @@ __all__ = [
     "HackerNewsFetcher",
     "NewsApiFetcher",
     "OpenAlexFetcher",
+    "WebsiteFetcher",
+    "WebsiteHtmlFetcher",
 ]

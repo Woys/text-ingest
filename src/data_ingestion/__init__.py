@@ -20,6 +20,8 @@ from data_ingestion.config import (
     OpenAlexConfig,
     ParquetSinkConfig,
     PipelineConfig,
+    WebsiteConfig,
+    WebsiteHtmlConfig,
 )
 from data_ingestion.factories import build_fetcher, build_fetchers
 from data_ingestion.models import (
@@ -61,6 +63,8 @@ __all__ = [
     "SourceRunStats",
     "TransformationEngine",
     "TransformationSpec",
+    "WebsiteConfig",
+    "WebsiteHtmlConfig",
     "__version__",
     "analyze_topic_trends",
     "build_fetcher",

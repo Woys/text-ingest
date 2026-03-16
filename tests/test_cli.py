@@ -26,6 +26,8 @@ def test_cli_list_fetchers(monkeypatch, capsys) -> None:
     assert "openalex" in out
     assert "crossref" in out
     assert "hacker-news" in out
+    assert "website" in out
+    assert "website_html" in out
 
 
 def test_cli_run_success(tmp_path, monkeypatch, capsys) -> None:

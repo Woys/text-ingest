@@ -1,7 +1,7 @@
 PYTHON  ?= python
 SRC      = src tests examples
 
-.PHONY: help install format lint typecheck test build clean all
+.PHONY: help install format lint docs-check typecheck test build clean all
 
 help:           ## show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -18,11 +18,14 @@ lint:           ## check formatting and lint without mutations
 	ruff format --check $(SRC)
 	ruff check $(SRC)
 
+docs-check:     ## ensure fetcher docs blocks exist for every fetcher
+	$(PYTHON) scripts/check_fetcher_docs.py
+
 typecheck:      ## run mypy static analysis
 	mypy src
 
 test:           ## run the test suite with coverage
-	pytest --cov=data_ingestion --cov-report=term-missing
+	PYDANTIC_DISABLE_PLUGINS=__all__ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p pytest_cov --cov=data_ingestion --cov-report=term-missing
 
 build:          ## build distribution packages
 	$(PYTHON) -m build
@@ -32,4 +35,4 @@ clean:          ## remove build artefacts and caches
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name "*.egg-info"  -exec rm -rf {} + 2>/dev/null || true
 
-all: format lint typecheck test  ## run the full quality pipeline
+all: format lint docs-check typecheck test  ## run the full quality pipeline

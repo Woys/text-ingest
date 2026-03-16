@@ -26,6 +26,8 @@ jobs:
         run: |
           ruff format --check src tests examples
           ruff check src tests examples
+      - name: Fetcher docs check
+        run: python scripts/check_fetcher_docs.py
       - name: Typecheck
         run: mypy src
       - name: Tests

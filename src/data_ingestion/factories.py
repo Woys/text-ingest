@@ -10,6 +10,8 @@ from data_ingestion.fetchers import federal_register as _federal_register  # noq
 from data_ingestion.fetchers import hackernews as _hackernews  # noqa: F401
 from data_ingestion.fetchers import newsapi as _newsapi  # noqa: F401
 from data_ingestion.fetchers import openalex as _openalex  # noqa: F401
+from data_ingestion.fetchers import website as _website  # noqa: F401
+from data_ingestion.fetchers import website_html as _website_html  # noqa: F401
 from data_ingestion.logging_utils import get_logger
 from data_ingestion.registry import get_fetcher_class
 

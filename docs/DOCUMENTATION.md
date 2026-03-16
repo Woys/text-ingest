@@ -6,6 +6,7 @@ Use this page as the entry point for all project documentation.
 
 - Architecture: `docs/ARCHITECTURE.md`
 - API Contract: `docs/API_CONTRACT.md`
+- Fetcher Docs Contract: `docs/FETCHER_DOCS.md`
 - Operations and Deployment: `docs/OPERATIONS.md`
 - Release Process: `docs/RELEASE_PROCESS.md`
 - Open Source Standards: `docs/OPEN_SOURCE_STANDARDS.md`

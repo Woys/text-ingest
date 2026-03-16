@@ -143,8 +143,106 @@ class FederalRegisterConfig(BaseSourceConfig):
     http: HttpClientConfig = Field(default_factory=HttpClientConfig)
 
 
+class WebsiteConfig(BaseSourceConfig):
+    feed_url: str | None = None
+    site_url: str | None = None
+    target_date: date | None = None
+    max_items: int = Field(default=100, ge=1, le=10_000)
+    search_mode: Literal["exact", "broad", "fuzzy_local", "date_only"] = "date_only"
+    http: HttpClientConfig = Field(default_factory=HttpClientConfig)
+
+    @field_validator("feed_url", "site_url")
+    @classmethod
+    def _normalize_optional_url(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        if not cleaned:
+            return None
+        return cleaned
+
+    @model_validator(mode="after")
+    def _validate_feed_or_site_url(self) -> WebsiteConfig:
+        if not self.feed_url and not self.site_url:
+            raise ValueError("Provide at least one of 'feed_url' or 'site_url'.")
+
+        if self.target_date is not None:
+            if self.start_date is not None and self.start_date != self.target_date:
+                raise ValueError("target_date conflicts with start_date.")
+            if self.end_date is not None and self.end_date != self.target_date:
+                raise ValueError("target_date conflicts with end_date.")
+            self.start_date = self.target_date
+            self.end_date = self.target_date
+
+        return self
+
+
+class WebsiteHtmlConfig(BaseSourceConfig):
+    site_url: str
+    list_page_urls: list[str] = Field(default_factory=list)
+    max_items: int = Field(default=100, ge=1, le=10_000)
+    max_candidate_links: int = Field(default=400, ge=1, le=50_000)
+    include_list_pages_as_items: bool = True
+    link_include_patterns: list[str] = Field(default_factory=list)
+    link_exclude_patterns: list[str] = Field(default_factory=list)
+    search_mode: Literal["exact", "broad", "fuzzy_local", "date_only"] = "date_only"
+    http: HttpClientConfig = Field(default_factory=HttpClientConfig)
+
+    @field_validator("site_url")
+    @classmethod
+    def _normalize_site_url(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("site_url must not be blank")
+        return cleaned
+
+    @field_validator("list_page_urls", mode="before")
+    @classmethod
+    def _coerce_list_page_urls(cls, value: Any) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return [value]
+        return list(value)
+
+    @field_validator(
+        "list_page_urls",
+        "link_include_patterns",
+        "link_exclude_patterns",
+        mode="before",
+    )
+    @classmethod
+    def _coerce_str_list(cls, value: Any) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return [value]
+        return list(value)
+
+    @field_validator("list_page_urls", "link_include_patterns", "link_exclude_patterns")
+    @classmethod
+    def _normalize_str_list(cls, value: list[str]) -> list[str]:
+        cleaned: list[str] = []
+        seen: set[str] = set()
+        for item in value:
+            normalized = item.strip()
+            if not normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            cleaned.append(normalized)
+        return cleaned
+
+
 class FetcherSpec(BaseModel):
-    source: Literal["openalex", "crossref", "newsapi", "hackernews", "federalregister"]
+    source: Literal[
+        "openalex",
+        "crossref",
+        "newsapi",
+        "hackernews",
+        "federalregister",
+        "website",
+        "website_html",
+    ]
     config: dict[str, Any]
 
 
