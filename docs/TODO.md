@@ -1,6 +1,6 @@
 # Todo List
 
-Use this page as the entry point for all project documentation.
+One day this will be done 
 
 ## Sources
 
