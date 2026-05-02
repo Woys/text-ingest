@@ -103,6 +103,14 @@ class FederalRegisterFetcher(BaseFetcher):
                     self.config.end_date.isoformat()
                 )
 
+            logger.info(
+                "FederalRegister: requesting page=%d per_page=%d start_date=%s "
+                "end_date=%s",
+                page,
+                self.config.per_page,
+                self.config.start_date,
+                self.config.end_date,
+            )
             try:
                 res = self.session.get(
                     self.BASE_URL,
@@ -116,14 +124,34 @@ class FederalRegisterFetcher(BaseFetcher):
 
             results = payload.get("results", [])
             if not results:
+                logger.info(
+                    "FederalRegister: no results page=%d pages_fetched=%d",
+                    page,
+                    pages_fetched,
+                )
                 return
 
+            logger.info(
+                "FederalRegister: received page=%d results=%d total_pages=%s",
+                page,
+                len(results),
+                payload.get("total_pages"),
+            )
             yield results
             pages_fetched += 1
 
             if page >= payload.get("total_pages", 0):
+                logger.info(
+                    "FederalRegister: reached last page=%d pages_fetched=%d",
+                    page,
+                    pages_fetched,
+                )
                 return
             page += 1
+        logger.info(
+            "FederalRegister: stopped after max_pages pages_fetched=%d",
+            pages_fetched,
+        )
 
     def extract_language(self, item: dict[str, Any]) -> str | None:
         del item

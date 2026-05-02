@@ -360,6 +360,13 @@ class WebsiteFetcher(BaseFetcher):
     def fetch_pages(self) -> Iterator[list[dict[str, Any]]]:
         feed_url = self._resolve_feed_url()
 
+        logger.info(
+            "Website: requesting feed url=%s max_items=%d start_date=%s end_date=%s",
+            feed_url,
+            self.config.max_items,
+            self.config.start_date,
+            self.config.end_date,
+        )
         try:
             response = self.session.get(
                 feed_url,
@@ -388,4 +395,10 @@ class WebsiteFetcher(BaseFetcher):
             logger.info("Website: no entries matched filters (%s)", feed_url)
             return
 
+        logger.info(
+            "Website: received feed entries=%d kept=%d url=%s",
+            len(items),
+            len(kept),
+            feed_url,
+        )
         yield kept

@@ -12,6 +12,7 @@ import requests
 from data_ingestion.config import WikipediaConfig
 from data_ingestion.exceptions import FetcherError
 from data_ingestion.http import build_retry_session
+from data_ingestion.logging_utils import get_logger
 from data_ingestion.models import NormalizedRecord, RecordType
 from data_ingestion.registry import register_fetcher
 
@@ -20,6 +21,8 @@ from .base import BaseFetcher
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from datetime import date
+
+logger = get_logger(__name__)
 
 
 @register_fetcher("wikipedia")
@@ -101,6 +104,13 @@ class WikipediaFetcher(BaseFetcher):
                 "sroffset": page * page_size,
             }
 
+            logger.info(
+                "Wikipedia: requesting language=%s page=%d offset=%d page_size=%d",
+                language,
+                page + 1,
+                params["sroffset"],
+                page_size,
+            )
             try:
                 response = self.session.get(
                     url,
@@ -120,8 +130,20 @@ class WikipediaFetcher(BaseFetcher):
 
             results: list[dict[str, Any]] = payload.get("query", {}).get("search", [])
             if not results:
+                logger.info(
+                    "Wikipedia: no results language=%s page=%d pages_fetched=%d",
+                    language,
+                    page + 1,
+                    pages_fetched,
+                )
                 return
 
+            logger.info(
+                "Wikipedia: received language=%s page=%d results=%d",
+                language,
+                page + 1,
+                len(results),
+            )
             enriched: list[dict[str, Any]] = []
             for item in results:
                 title = item.get("title")
@@ -163,3 +185,8 @@ class WikipediaFetcher(BaseFetcher):
             yield enriched
             pages_fetched += 1
             page += 1
+        logger.info(
+            "Wikipedia: stopped after max_pages language=%s pages_fetched=%d",
+            language,
+            pages_fetched,
+        )

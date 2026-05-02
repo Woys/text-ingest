@@ -140,6 +140,15 @@ class HackerNewsFetcher(BaseFetcher):
             if numeric_filters:
                 params["numericFilters"] = ",".join(numeric_filters)
 
+            logger.info(
+                "HackerNews: requesting page=%d hits_per_page=%d endpoint=%s "
+                "filters=%s tags=%s",
+                page,
+                self.config.hits_per_page,
+                endpoint,
+                params.get("numericFilters"),
+                params.get("tags"),
+            )
             try:
                 response = self.session.get(
                     endpoint,
@@ -162,6 +171,12 @@ class HackerNewsFetcher(BaseFetcher):
                 logger.info("HackerNews: no hits on page %d — stopping", page)
                 return
 
+            logger.info(
+                "HackerNews: received page=%d hits=%d nb_pages=%s",
+                page,
+                len(hits),
+                payload.get("nbPages"),
+            )
             yield hits
             pages_fetched += 1
 
@@ -170,6 +185,10 @@ class HackerNewsFetcher(BaseFetcher):
                 logger.info("HackerNews: reached last available page %d", page)
                 return
             page += 1
+        logger.info(
+            "HackerNews: stopped after max_pages pages_fetched=%d",
+            pages_fetched,
+        )
 
     def extract_language(self, item: dict[str, Any]) -> str | None:
         del item

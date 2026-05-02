@@ -10,6 +10,7 @@ import requests
 from data_ingestion.config import GitHubConfig
 from data_ingestion.exceptions import FetcherError
 from data_ingestion.http import build_retry_session
+from data_ingestion.logging_utils import get_logger
 from data_ingestion.models import NormalizedRecord, RecordType
 from data_ingestion.registry import register_fetcher
 
@@ -18,6 +19,8 @@ from .base import BaseFetcher
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from datetime import date
+
+logger = get_logger(__name__)
 
 
 @register_fetcher("github")
@@ -88,6 +91,12 @@ class GitHubFetcher(BaseFetcher):
                 "page": page,
             }
 
+            logger.info(
+                "GitHub: requesting page=%d per_page=%d sort=%s",
+                page,
+                self.config.per_page,
+                self.config.sort,
+            )
             try:
                 response = self.session.get(
                     self.BASE_URL,
@@ -107,11 +116,29 @@ class GitHubFetcher(BaseFetcher):
 
             items: list[dict[str, Any]] = payload.get("items", [])
             if not items:
+                logger.info(
+                    "GitHub: no items page=%d pages_fetched=%d",
+                    page,
+                    pages_fetched,
+                )
                 return
 
+            logger.info(
+                "GitHub: received page=%d items=%d total_count=%s",
+                page,
+                len(items),
+                payload.get("total_count"),
+            )
             yield items
             pages_fetched += 1
 
             if len(items) < self.config.per_page:
+                logger.info(
+                    "GitHub: partial page page=%d items=%d pages_fetched=%d",
+                    page,
+                    len(items),
+                    pages_fetched,
+                )
                 return
             page += 1
+        logger.info("GitHub: stopped after max_pages pages_fetched=%d", pages_fetched)

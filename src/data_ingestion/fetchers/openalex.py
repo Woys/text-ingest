@@ -131,6 +131,13 @@ class OpenAlexFetcher(BaseFetcher):
 
         pages_fetched = 0
         while not self._page_limit_reached(pages_fetched):
+            logger.info(
+                "OpenAlex: requesting page=%d per_page=%d cursor=%s filters=%s",
+                pages_fetched,
+                self.config.per_page,
+                str(params.get("cursor", ""))[:24],
+                params.get("filter"),
+            )
             try:
                 response = self.session.get(
                     self.BASE_URL,
@@ -144,12 +151,29 @@ class OpenAlexFetcher(BaseFetcher):
 
             results = payload.get("results", [])
             if not results:
+                logger.info(
+                    "OpenAlex: no results page=%d pages_fetched=%d",
+                    pages_fetched,
+                    pages_fetched,
+                )
                 return
 
+            meta = payload.get("meta", {})
+            logger.info(
+                "OpenAlex: received page=%d results=%d count=%s",
+                pages_fetched,
+                len(results),
+                meta.get("count"),
+            )
             yield results
             pages_fetched += 1
 
             next_cursor = payload.get("meta", {}).get("next_cursor")
             if not next_cursor:
+                logger.info(
+                    "OpenAlex: no next cursor after pages_fetched=%d",
+                    pages_fetched,
+                )
                 return
             params["cursor"] = next_cursor
+        logger.info("OpenAlex: stopped after max_pages pages_fetched=%d", pages_fetched)

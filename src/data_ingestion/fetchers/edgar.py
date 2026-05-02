@@ -10,6 +10,7 @@ import requests
 from data_ingestion.config import EdgarConfig
 from data_ingestion.exceptions import FetcherError
 from data_ingestion.http import build_retry_session
+from data_ingestion.logging_utils import get_logger
 from data_ingestion.models import NormalizedRecord, RecordType
 from data_ingestion.registry import register_fetcher
 
@@ -18,6 +19,8 @@ from .base import BaseFetcher
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from datetime import date
+
+logger = get_logger(__name__)
 
 
 @register_fetcher("edgar")
@@ -109,6 +112,14 @@ class EdgarFetcher(BaseFetcher):
             if self.config.end_date is not None:
                 params["enddt"] = self.config.end_date.isoformat()
 
+            logger.info(
+                "EDGAR: requesting page=%d from=%d size=%d startdt=%s enddt=%s",
+                page,
+                params["from"],
+                self.config.per_page,
+                params.get("startdt"),
+                params.get("enddt"),
+            )
             try:
                 response = self.session.get(
                     self.BASE_URL,
@@ -128,11 +139,30 @@ class EdgarFetcher(BaseFetcher):
 
             hits: list[dict[str, Any]] = payload.get("hits", {}).get("hits", [])
             if not hits:
+                logger.info(
+                    "EDGAR: no hits page=%d pages_fetched=%d",
+                    page,
+                    pages_fetched,
+                )
                 return
 
+            total = payload.get("hits", {}).get("total")
+            logger.info(
+                "EDGAR: received page=%d hits=%d total=%s",
+                page,
+                len(hits),
+                total,
+            )
             yield hits
             pages_fetched += 1
 
             if len(hits) < self.config.per_page:
+                logger.info(
+                    "EDGAR: partial page page=%d hits=%d pages_fetched=%d",
+                    page,
+                    len(hits),
+                    pages_fetched,
+                )
                 return
             page += 1
+        logger.info("EDGAR: stopped after max_pages pages_fetched=%d", pages_fetched)

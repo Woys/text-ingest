@@ -10,6 +10,7 @@ import requests
 from data_ingestion.config import StackExchangeConfig
 from data_ingestion.exceptions import FetcherError
 from data_ingestion.http import build_retry_session
+from data_ingestion.logging_utils import get_logger
 from data_ingestion.models import NormalizedRecord, RecordType
 from data_ingestion.registry import register_fetcher
 
@@ -18,6 +19,8 @@ from .base import BaseFetcher
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from datetime import date
+
+logger = get_logger(__name__)
 
 
 @register_fetcher("stackexchange")
@@ -104,6 +107,15 @@ class StackExchangeFetcher(BaseFetcher):
                 )
                 params["todate"] = int(end_dt.timestamp()) - 1
 
+            logger.info(
+                "StackExchange: requesting site=%s page=%d pagesize=%d "
+                "fromdate=%s todate=%s",
+                self.config.site,
+                page,
+                self.config.page_size,
+                params.get("fromdate"),
+                params.get("todate"),
+            )
             try:
                 response = self.session.get(
                     self.BASE_URL,
@@ -123,11 +135,36 @@ class StackExchangeFetcher(BaseFetcher):
 
             items: list[dict[str, Any]] = payload.get("items", [])
             if not items:
+                logger.info(
+                    "StackExchange: no items site=%s page=%d pages_fetched=%d",
+                    self.config.site,
+                    page,
+                    pages_fetched,
+                )
                 return
 
+            logger.info(
+                "StackExchange: received site=%s page=%d items=%d has_more=%s "
+                "quota_remaining=%s",
+                self.config.site,
+                page,
+                len(items),
+                payload.get("has_more"),
+                payload.get("quota_remaining"),
+            )
             yield items
             pages_fetched += 1
 
             if not payload.get("has_more", False):
+                logger.info(
+                    "StackExchange: no more pages site=%s pages_fetched=%d",
+                    self.config.site,
+                    pages_fetched,
+                )
                 return
             page += 1
+        logger.info(
+            "StackExchange: stopped after max_pages site=%s pages_fetched=%d",
+            self.config.site,
+            pages_fetched,
+        )

@@ -261,6 +261,11 @@ class WebsiteHtmlFetcher(BaseFetcher):
         article_links: list[str] = []
         seen_links: set[str] = set()
         for list_page in list_pages:
+            logger.info(
+                "Website HTML: requesting list_page=%s candidate_links=%d",
+                list_page,
+                len(article_links),
+            )
             try:
                 response = self.session.get(
                     list_page,
@@ -282,6 +287,11 @@ class WebsiteHtmlFetcher(BaseFetcher):
             if len(article_links) >= self.config.max_candidate_links:
                 break
 
+        logger.info(
+            "Website HTML: discovered candidate_links=%d list_pages=%d",
+            len(article_links),
+            len(list_pages),
+        )
         if not article_links:
             if self.config.include_list_pages_as_items:
                 logger.info(
@@ -293,7 +303,13 @@ class WebsiteHtmlFetcher(BaseFetcher):
                 return
 
         kept: list[dict[str, Any]] = []
-        for url in article_links:
+        for idx, url in enumerate(article_links, start=1):
+            logger.info(
+                "Website HTML: requesting article index=%d total=%d url=%s",
+                idx,
+                len(article_links),
+                url,
+            )
             try:
                 response = self.session.get(
                     url,
@@ -337,4 +353,9 @@ class WebsiteHtmlFetcher(BaseFetcher):
             logger.info("Website HTML: no pages matched filters")
             return
 
+        logger.info(
+            "Website HTML: kept pages=%d candidate_links=%d",
+            len(kept),
+            len(article_links),
+        )
         yield kept

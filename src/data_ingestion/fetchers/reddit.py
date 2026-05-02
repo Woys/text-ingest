@@ -10,6 +10,7 @@ import requests
 from data_ingestion.config import RedditConfig
 from data_ingestion.exceptions import FetcherError
 from data_ingestion.http import build_retry_session
+from data_ingestion.logging_utils import get_logger
 from data_ingestion.models import NormalizedRecord, RecordType
 from data_ingestion.registry import register_fetcher
 
@@ -18,6 +19,8 @@ from .base import BaseFetcher
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from datetime import date
+
+logger = get_logger(__name__)
 
 
 @register_fetcher("reddit")
@@ -91,6 +94,13 @@ class RedditFetcher(BaseFetcher):
             if after:
                 params["after"] = after
 
+            logger.info(
+                "Reddit: requesting page=%d limit=%d subreddit=%s after=%s",
+                page + 1,
+                self.config.page_size,
+                self.config.subreddit,
+                after,
+            )
             try:
                 response = self.session.get(
                     self.BASE_URL,
@@ -110,15 +120,31 @@ class RedditFetcher(BaseFetcher):
 
             children = payload.get("data", {}).get("children", [])
             if not children:
+                logger.info(
+                    "Reddit: no children page=%d pages_fetched=%d",
+                    page + 1,
+                    pages_fetched,
+                )
                 return
 
             items: list[dict[str, Any]] = [
                 {**child.get("data", {}), "lang": "en"} for child in children
             ]
+            logger.info(
+                "Reddit: received page=%d items=%d next_after=%s",
+                page + 1,
+                len(items),
+                payload.get("data", {}).get("after"),
+            )
             yield items
             pages_fetched += 1
 
             after = payload.get("data", {}).get("after")
             if not after:
+                logger.info(
+                    "Reddit: no next page pages_fetched=%d",
+                    pages_fetched,
+                )
                 return
             page += 1
+        logger.info("Reddit: stopped after max_pages pages_fetched=%d", pages_fetched)

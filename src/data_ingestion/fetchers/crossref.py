@@ -136,6 +136,13 @@ class CrossRefFetcher(BaseFetcher):
         page_idx = 0
         while not self._page_limit_reached(pages_fetched):
             params = {**base_params, "offset": page_idx * self.config.rows}
+            logger.info(
+                "Crossref: requesting page=%d offset=%d rows=%d filters=%s",
+                page_idx,
+                params["offset"],
+                self.config.rows,
+                base_params.get("filter"),
+            )
             res = self.session.get(
                 self.BASE_URL,
                 params=params,
@@ -146,11 +153,25 @@ class CrossRefFetcher(BaseFetcher):
 
             items = payload.get("message", {}).get("items", [])
             if not items:
+                logger.info(
+                    "Crossref: no items page=%d offset=%d pages_fetched=%d",
+                    page_idx,
+                    params["offset"],
+                    pages_fetched,
+                )
                 return
 
+            total_results = payload.get("message", {}).get("total-results")
+            logger.info(
+                "Crossref: received page=%d items=%d total_results=%s",
+                page_idx,
+                len(items),
+                total_results,
+            )
             yield items
             pages_fetched += 1
             page_idx += 1
+        logger.info("Crossref: stopped after max_pages pages_fetched=%d", pages_fetched)
 
     def extract_language(self, item: dict[str, Any]) -> str | None:
         raw = item.get("language")

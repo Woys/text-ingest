@@ -112,6 +112,15 @@ class NewsApiFetcher(BaseFetcher):
                 if self.config.end_date is not None:
                     params["to"] = self.config.end_date.isoformat()
 
+                logger.info(
+                    "NewsAPI: requesting language=%s page=%d page_size=%d "
+                    "start_date=%s end_date=%s",
+                    language,
+                    page,
+                    self.config.page_size,
+                    self.config.start_date,
+                    self.config.end_date,
+                )
                 try:
                     response = self.session.get(
                         self.BASE_URL,
@@ -150,6 +159,14 @@ class NewsApiFetcher(BaseFetcher):
                     annotated["_requested_language"] = language
                     articles.append(annotated)
 
+                logger.info(
+                    "NewsAPI: received language=%s page=%d articles=%d "
+                    "total_results=%s",
+                    language,
+                    page,
+                    len(articles),
+                    payload.get("totalResults"),
+                )
                 yield articles
                 pages_fetched += 1
 
@@ -164,3 +181,9 @@ class NewsApiFetcher(BaseFetcher):
                     )
                     break
                 page += 1
+            else:
+                logger.info(
+                    "NewsAPI: stopped after max_pages language=%s pages_fetched=%d",
+                    language,
+                    pages_fetched,
+                )

@@ -10,6 +10,7 @@ import requests
 from data_ingestion.config import GuardianConfig
 from data_ingestion.exceptions import FetcherError
 from data_ingestion.http import build_retry_session
+from data_ingestion.logging_utils import get_logger
 from data_ingestion.models import NormalizedRecord, RecordType
 from data_ingestion.registry import register_fetcher
 
@@ -18,6 +19,8 @@ from .base import BaseFetcher
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from datetime import date
+
+logger = get_logger(__name__)
 
 
 @register_fetcher("guardian")
@@ -85,6 +88,13 @@ class GuardianFetcher(BaseFetcher):
             if self.config.end_date is not None:
                 params["to-date"] = self.config.end_date.isoformat()
 
+            logger.info(
+                "Guardian: requesting page=%d page_size=%d start_date=%s end_date=%s",
+                page,
+                self.config.page_size,
+                self.config.start_date,
+                self.config.end_date,
+            )
             try:
                 response = self.session.get(
                     self.BASE_URL,
@@ -111,12 +121,29 @@ class GuardianFetcher(BaseFetcher):
 
             results: list[dict[str, Any]] = content.get("results", [])
             if not results:
+                logger.info(
+                    "Guardian: no results page=%d pages_fetched=%d",
+                    page,
+                    pages_fetched,
+                )
                 return
 
             enriched = [{**item, "lang": "en"} for item in results]
+            logger.info(
+                "Guardian: received page=%d results=%d total_pages=%s",
+                page,
+                len(results),
+                content.get("pages"),
+            )
             yield enriched
             pages_fetched += 1
 
             if page >= content.get("pages", 0):
+                logger.info(
+                    "Guardian: reached last page=%d pages_fetched=%d",
+                    page,
+                    pages_fetched,
+                )
                 return
             page += 1
+        logger.info("Guardian: stopped after max_pages pages_fetched=%d", pages_fetched)

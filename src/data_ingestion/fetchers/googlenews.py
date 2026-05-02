@@ -12,6 +12,7 @@ import requests
 from data_ingestion.config import GoogleNewsConfig
 from data_ingestion.exceptions import FetcherError
 from data_ingestion.http import build_retry_session
+from data_ingestion.logging_utils import get_logger
 from data_ingestion.models import NormalizedRecord, RecordType
 from data_ingestion.registry import register_fetcher
 
@@ -20,6 +21,8 @@ from .base import BaseFetcher
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from datetime import date
+
+logger = get_logger(__name__)
 
 
 @register_fetcher("googlenews")
@@ -86,6 +89,14 @@ class GoogleNewsFetcher(BaseFetcher):
             f"&ceid={self.config.ceid}"
         )
 
+        logger.info(
+            "GoogleNews: requesting rss query=%r start_date=%s end_date=%s "
+            "page_size=%d",
+            " ".join(query_parts),
+            self.config.start_date,
+            self.config.end_date,
+            self.config.page_size,
+        )
         try:
             response = self.session.get(
                 url,
@@ -102,9 +113,11 @@ class GoogleNewsFetcher(BaseFetcher):
         channel_language = channel.findtext("language") if channel is not None else None
         item_elements = root.findall("./channel/item")
         if not item_elements:
+            logger.info("GoogleNews: rss returned no item elements")
             return
 
         items: list[dict[str, Any]] = []
+        filtered_out = 0
         for element in item_elements:
             item = {
                 "title": element.findtext("title"),
@@ -118,10 +131,12 @@ class GoogleNewsFetcher(BaseFetcher):
             if self.config.start_date is not None and (
                 published_date is None or published_date < self.config.start_date
             ):
+                filtered_out += 1
                 continue
             if self.config.end_date is not None and (
                 published_date is None or published_date > self.config.end_date
             ):
+                filtered_out += 1
                 continue
 
             items.append(item)
@@ -129,4 +144,17 @@ class GoogleNewsFetcher(BaseFetcher):
                 break
 
         if items:
+            logger.info(
+                "GoogleNews: received rss_items=%d kept=%d filtered_out=%d",
+                len(item_elements),
+                len(items),
+                filtered_out,
+            )
             yield items
+        else:
+            logger.info(
+                "GoogleNews: no rss items matched date filters rss_items=%d "
+                "filtered_out=%d",
+                len(item_elements),
+                filtered_out,
+            )

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -26,6 +27,8 @@ if TYPE_CHECKING:
     from data_ingestion.sinks.base import BaseSink
 
 logger = get_logger(__name__)
+
+_ASYNC_PROGRESS_EVERY = 100
 
 
 class _AsyncDone:
@@ -463,6 +466,12 @@ async def _async_stream_records_sequential(
 ) -> AsyncIterator[tuple[str, dict[str, Any] | NormalizedRecord]]:
     for fetcher in fetchers:
         yielded = 0
+        started = time.monotonic()
+        logger.info(
+            "async_stream_records source=%s started raw=%s",
+            fetcher.source_name,
+            raw,
+        )
         async for source, item in _async_iter_fetcher_items(fetcher, raw=raw):
             if not raw and transform_engine is not None:
                 assert isinstance(item, NormalizedRecord)
@@ -472,12 +481,20 @@ async def _async_stream_records_sequential(
                 item = transformed
 
             yielded += 1
+            if yielded % _ASYNC_PROGRESS_EVERY == 0:
+                logger.info(
+                    "async_stream_records source=%s yielded=%d elapsed_seconds=%.1f",
+                    fetcher.source_name,
+                    yielded,
+                    time.monotonic() - started,
+                )
             yield source, item
 
         logger.info(
-            "async_stream_records source=%s yielded=%d",
+            "async_stream_records source=%s completed yielded=%d elapsed_seconds=%.1f",
             fetcher.source_name,
             yielded,
+            time.monotonic() - started,
         )
 
 
@@ -497,12 +514,41 @@ async def _async_stream_records_concurrent(
 
     async def produce(fetcher: BaseFetcher) -> None:
         async with semaphore:
+            yielded = 0
+            started = time.monotonic()
+            logger.info(
+                "async_stream_records source=%s producer_started raw=%s",
+                fetcher.source_name,
+                raw,
+            )
             try:
                 async for source, item in _async_iter_fetcher_items(fetcher, raw=raw):
                     await queue.put((source, item))
+                    yielded += 1
+                    if yielded % _ASYNC_PROGRESS_EVERY == 0:
+                        logger.info(
+                            "async_stream_records source=%s queued=%d queue_size=%d "
+                            "elapsed_seconds=%.1f",
+                            fetcher.source_name,
+                            yielded,
+                            queue.qsize(),
+                            time.monotonic() - started,
+                        )
             except BaseException as exc:
+                logger.exception(
+                    "async_stream_records source=%s producer_failed queued=%d",
+                    fetcher.source_name,
+                    yielded,
+                )
                 await queue.put((fetcher.source_name, exc))
             finally:
+                logger.info(
+                    "async_stream_records source=%s producer_completed queued=%d "
+                    "elapsed_seconds=%.1f",
+                    fetcher.source_name,
+                    yielded,
+                    time.monotonic() - started,
+                )
                 await queue.put((fetcher.source_name, _ASYNC_DONE))
 
     tasks = [asyncio.create_task(produce(fetcher)) for fetcher in fetchers]
