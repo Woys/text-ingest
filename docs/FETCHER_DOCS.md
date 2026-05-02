@@ -26,6 +26,23 @@
     "notes": "Fetches scholarly metadata from Crossref and normalizes to NormalizedRecord."
   },
   {
+    "file_name_py": "edgar.py",
+    "name": "SEC EDGAR Fetcher",
+    "required_config": [
+      "query (unless using date-only mode)"
+    ],
+    "optional_config": [
+      "per_page",
+      "max_pages",
+      "start_date",
+      "end_date",
+      "languages",
+      "topic_include/topic_exclude",
+      "http"
+    ],
+    "notes": "Fetches SEC EDGAR submissions using the EFTS API and constructs full-text URLs."
+  },
+  {
     "file_name_py": "federal_register.py",
     "name": "Federal Register Fetcher",
     "required_config": [

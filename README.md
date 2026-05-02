@@ -43,6 +43,7 @@ print(summary.model_dump())
 - `website_html` (non-RSS HTML fallback)
 - `wikipedia`
 - `reddit`
+- `edgar`
 - `github`
 - `stackexchange`
 - `openlibrary`

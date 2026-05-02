@@ -24,6 +24,38 @@ class _Resp:
         return self._payload
 
 
+def test_normalize_missing_date() -> None:
+    fetcher = GuardianFetcher(GuardianConfig(query="ai", max_pages=1))
+    article = {
+        "id": "world/2026/mar/10/example",
+        "webTitle": "Title",
+        "webUrl": "https://theguardian.com/example",
+        "sectionName": "World news",
+    }
+    rec = fetcher.normalize(article)
+    assert rec.published_date is None
+
+
+def test_normalize_invalid_date() -> None:
+    fetcher = GuardianFetcher(GuardianConfig(query="ai", max_pages=1))
+    article = {
+        "id": "world/2026/mar/10/example",
+        "webTitle": "Title",
+        "webPublicationDate": "invalid",
+        "webUrl": "https://theguardian.com/example",
+        "sectionName": "World news",
+    }
+    rec = fetcher.normalize(article)
+    assert rec.published_date is None
+
+
+def test_extract_language() -> None:
+    fetcher = GuardianFetcher(GuardianConfig(query="ai", max_pages=1))
+    assert fetcher.extract_language({"lang": "fr"}) == "fr"
+    assert fetcher.extract_language({}) == "en"
+    assert fetcher.extract_language({"lang": 123}) == "en"
+
+
 def test_normalize_maps_fields() -> None:
     fetcher = GuardianFetcher(GuardianConfig(query="ai", max_pages=1))
     rec = fetcher.normalize(
@@ -82,6 +114,51 @@ def test_fetch_pages_success(monkeypatch) -> None:
     assert pages[0][0]["lang"] == "en"
     assert calls[0]["from-date"] == "2026-03-01"
     assert calls[0]["to-date"] == "2026-03-31"
+
+
+def test_fetch_pages_empty_results(fake_response_factory, monkeypatch) -> None:
+    monkeypatch.setenv("GUARDIAN_KEY", "test_key")
+    payload = {"response": {"status": "ok", "pages": 0, "results": []}}
+
+    config = GuardianConfig(query="q", max_pages=1, page_size=10)
+    fetcher = GuardianFetcher(config)
+    monkeypatch.setattr(
+        fetcher.session,
+        "get",
+        lambda url, params, timeout: fake_response_factory(payload),
+    )
+
+    pages = list(fetcher.fetch_pages())
+    assert len(pages) == 0
+
+
+def test_fetch_pages_with_date_params(fake_response_factory, monkeypatch) -> None:
+    monkeypatch.setenv("GUARDIAN_KEY", "test_key")
+    payload = {
+        "response": {
+            "status": "ok",
+            "pages": 1,
+            "results": [{"id": "one", "webTitle": "One"}],
+        }
+    }
+
+    config = GuardianConfig(
+        query="q",
+        max_pages=1,
+        page_size=10,
+        start_date=date(2023, 1, 1),
+        end_date=date(2023, 12, 31),
+    )
+    fetcher = GuardianFetcher(config)
+
+    def fake_get(url, params, timeout):
+        assert params["from-date"] == "2023-01-01"
+        assert params["to-date"] == "2023-12-31"
+        return fake_response_factory(payload)
+
+    monkeypatch.setattr(fetcher.session, "get", fake_get)
+    pages = list(fetcher.fetch_pages())
+    assert len(pages) == 1
 
 
 def test_fetch_pages_status_error(monkeypatch) -> None:

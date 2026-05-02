@@ -169,6 +169,11 @@ class FederalRegisterConfig(BaseSourceConfig):
     http: HttpClientConfig = Field(default_factory=HttpClientConfig)
 
 
+class EdgarConfig(BaseSourceConfig):
+    per_page: int = Field(default=50, ge=1, le=1000)
+    http: HttpClientConfig = Field(default_factory=HttpClientConfig)
+
+
 class WikipediaConfig(BaseSourceConfig):
     wiki_language: str = Field(default="en", min_length=2, max_length=10)
     page_size: int = Field(default=20, ge=1, le=50)
@@ -336,6 +341,7 @@ class FetcherSpec(BaseModel):
         "guardian",
         "website",
         "website_html",
+        "edgar",
     ]
     config: dict[str, Any]
 

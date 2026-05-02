@@ -2,6 +2,7 @@
 
 from .base import BaseFetcher
 from .crossref import CrossRefFetcher
+from .edgar import EdgarFetcher
 from .federal_register import FederalRegisterFetcher
 from .github import GitHubFetcher
 from .googlenews import GoogleNewsFetcher
@@ -19,6 +20,7 @@ from .wikipedia import WikipediaFetcher
 __all__ = [
     "BaseFetcher",
     "CrossRefFetcher",
+    "EdgarFetcher",
     "FederalRegisterFetcher",
     "GitHubFetcher",
     "GoogleNewsFetcher",

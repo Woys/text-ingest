@@ -3,6 +3,7 @@ from pydantic import ValidationError
 
 from data_ingestion.factories import build_fetcher, build_fetchers
 from data_ingestion.fetchers.crossref import CrossRefFetcher
+from data_ingestion.fetchers.edgar import EdgarFetcher
 from data_ingestion.fetchers.github import GitHubFetcher
 from data_ingestion.fetchers.googlenews import GoogleNewsFetcher
 from data_ingestion.fetchers.guardian import GuardianFetcher
@@ -21,6 +22,7 @@ def test_registry_contains_all_builtin_fetchers() -> None:
     fetchers = list_fetchers()
     assert "openalex" in fetchers
     assert "crossref" in fetchers
+    assert "edgar" in fetchers
     assert "newsapi" in fetchers
     assert "website" in fetchers
     assert "website_html" in fetchers
@@ -61,6 +63,7 @@ def test_build_fetchers_returns_all_items(monkeypatch) -> None:
         [
             {"source": "openalex", "config": {"query": "x", "max_pages": 1}},
             {"source": "crossref", "config": {"query": "y", "max_pages": 1}},
+            {"source": "edgar", "config": {"query": "z", "max_pages": 1}},
             {"source": "newsapi", "config": {"query": "z", "max_pages": 1}},
             {"source": "wikipedia", "config": {"query": "z", "max_pages": 1}},
             {"source": "reddit", "config": {"query": "z", "max_pages": 1}},
@@ -73,7 +76,7 @@ def test_build_fetchers_returns_all_items(monkeypatch) -> None:
             {"source": "website_html", "config": {"site_url": "https://example.com"}},
         ]
     )
-    assert len(fetchers) == 12
+    assert len(fetchers) == 13
 
 
 def test_build_fetcher_website() -> None:
@@ -103,6 +106,11 @@ def test_build_fetcher_reddit() -> None:
 def test_build_fetcher_github() -> None:
     f = build_fetcher({"source": "github", "config": {"query": "x"}})
     assert isinstance(f, GitHubFetcher)
+
+
+def test_build_fetcher_edgar() -> None:
+    f = build_fetcher({"source": "edgar", "config": {"query": "x"}})
+    assert isinstance(f, EdgarFetcher)
 
 
 def test_build_fetcher_stackexchange() -> None:

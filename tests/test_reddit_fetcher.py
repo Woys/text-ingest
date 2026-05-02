@@ -38,6 +38,25 @@ def test_normalize_maps_fields() -> None:
     assert rec.url and rec.url.startswith("https://www.reddit.com/")
 
 
+def test_normalize_missing_date() -> None:
+    fetcher = RedditFetcher(RedditConfig(query="ai", max_pages=1))
+    rec = fetcher.normalize({"id": "abc", "created_utc": None})
+    assert rec.published_date is None
+
+
+def test_normalize_invalid_date() -> None:
+    fetcher = RedditFetcher(RedditConfig(query="ai", max_pages=1))
+    rec = fetcher.normalize({"id": "abc", "created_utc": "invalid"})
+    assert rec.published_date is None
+
+
+def test_extract_language() -> None:
+    fetcher = RedditFetcher(RedditConfig(query="ai", max_pages=1))
+    assert fetcher.extract_language({"lang": "fr"}) == "fr"
+    assert fetcher.extract_language({}) == "en"
+    assert fetcher.extract_language({"lang": 123}) == "en"
+
+
 def test_fetch_pages_success(monkeypatch) -> None:
     fetcher = RedditFetcher(RedditConfig(query="ai", max_pages=1, page_size=2))
     payload = {
@@ -65,3 +84,52 @@ def test_fetch_pages_wraps_request_error(monkeypatch) -> None:
     monkeypatch.setattr(fetcher.session, "get", boom)
     with pytest.raises(FetcherError, match="Reddit request failed"):
         list(fetcher.fetch_pages())
+
+
+def test_fetch_pages_empty_children(monkeypatch) -> None:
+    fetcher = RedditFetcher(RedditConfig(query="ai", max_pages=1))
+    payload = {"data": {"children": []}}
+    monkeypatch.setattr(fetcher.session, "get", lambda *a, **k: _Resp(payload))
+    pages = list(fetcher.fetch_pages())
+    assert len(pages) == 0
+
+
+class _RespInvalidJson:
+    def raise_for_status(self) -> None:
+        pass
+
+    def json(self):
+        raise ValueError("Invalid JSON")
+
+
+def test_fetch_pages_invalid_json(monkeypatch) -> None:
+    fetcher = RedditFetcher(RedditConfig(query="ai", max_pages=1))
+    monkeypatch.setattr(fetcher.session, "get", lambda *a, **k: _RespInvalidJson())
+    with pytest.raises(FetcherError, match="invalid JSON"):
+        list(fetcher.fetch_pages())
+
+
+def test_fetch_pages_with_subreddit_and_pagination(monkeypatch) -> None:
+    fetcher = RedditFetcher(RedditConfig(query="ai", max_pages=2, subreddit="python"))
+
+    call_params = []
+
+    def fake_get(url, params, timeout):
+        call_params.append(params)
+        if len(call_params) == 1:
+            return _Resp(
+                {
+                    "data": {
+                        "children": [{"data": {"id": "1"}}],
+                        "after": "t3_abc",
+                    }
+                }
+            )
+        return _Resp({"data": {"children": [{"data": {"id": "2"}}], "after": None}})
+
+    monkeypatch.setattr(fetcher.session, "get", fake_get)
+    pages = list(fetcher.fetch_pages())
+    assert len(pages) == 2
+    assert call_params[0]["q"] == "subreddit:python ai"
+    assert "after" not in call_params[0]
+    assert call_params[1]["after"] == "t3_abc"

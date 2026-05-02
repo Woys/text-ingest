@@ -40,6 +40,31 @@ def test_normalize_maps_fields() -> None:
     assert rec.authors == ["org"]
 
 
+def test_normalize_missing_date() -> None:
+    fetcher = GitHubFetcher(GitHubConfig(query="data", max_pages=1))
+    rec = fetcher.normalize({"id": 1, "updated_at": None})
+    assert rec.published_date is None
+
+
+def test_normalize_invalid_date() -> None:
+    fetcher = GitHubFetcher(GitHubConfig(query="data", max_pages=1))
+    rec = fetcher.normalize({"id": 1, "updated_at": "invalid"})
+    assert rec.published_date is None
+
+
+def test_extract_language() -> None:
+    fetcher = GitHubFetcher(GitHubConfig(query="data", max_pages=1))
+    assert fetcher.extract_language({"human_language": "en"}) == "en"
+    assert fetcher.extract_language({}) is None
+
+
+def test_github_token_header() -> None:
+    fetcher = GitHubFetcher(
+        GitHubConfig(query="data", max_pages=1, github_token="secret")
+    )
+    assert fetcher.session.headers["Authorization"] == "Bearer secret"
+
+
 def test_fetch_pages_success(monkeypatch) -> None:
     fetcher = GitHubFetcher(GitHubConfig(query="data", max_pages=1, per_page=2))
     payload = {"items": [{"id": 1}, {"id": 2}]}
@@ -58,4 +83,27 @@ def test_fetch_pages_wraps_request_error(monkeypatch) -> None:
 
     monkeypatch.setattr(fetcher.session, "get", boom)
     with pytest.raises(FetcherError, match="GitHub request failed"):
+        list(fetcher.fetch_pages())
+
+
+def test_fetch_pages_empty_items(monkeypatch) -> None:
+    fetcher = GitHubFetcher(GitHubConfig(query="data", max_pages=1))
+    payload = {"items": []}
+    monkeypatch.setattr(fetcher.session, "get", lambda *a, **k: _Resp(payload))
+    pages = list(fetcher.fetch_pages())
+    assert len(pages) == 0
+
+
+class _RespInvalidJson:
+    def raise_for_status(self) -> None:
+        pass
+
+    def json(self):
+        raise ValueError("Invalid JSON")
+
+
+def test_fetch_pages_invalid_json(monkeypatch) -> None:
+    fetcher = GitHubFetcher(GitHubConfig(query="data", max_pages=1))
+    monkeypatch.setattr(fetcher.session, "get", lambda *a, **k: _RespInvalidJson())
+    with pytest.raises(FetcherError, match="invalid JSON"):
         list(fetcher.fetch_pages())

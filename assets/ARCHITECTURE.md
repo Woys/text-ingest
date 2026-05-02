@@ -15,7 +15,7 @@ The library is designed around four core goals:
 
 The project sits between external data providers and downstream data consumers.
 
-- Inputs: HTTP APIs (OpenAlex, Crossref, NewsAPI, Hacker News, Federal Register).
+- Inputs: HTTP APIs (OpenAlex, Crossref, NewsAPI, Hacker News, Federal Register, SEC EDGAR).
 - Processing: fetch, normalize, filter, transform, dedupe, optional full-text enrichment.
 - Outputs: JSONL/CSV/Parquet through sinks or user-managed orchestration tools.
 

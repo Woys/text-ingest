@@ -39,6 +39,23 @@ def test_normalize_maps_fields() -> None:
     assert rec.published_date == date(2020, 1, 1)
 
 
+def test_normalize_handles_missing_and_invalid_date() -> None:
+    fetcher = OpenLibraryFetcher(OpenLibraryConfig(query="ai", max_pages=1))
+    rec1 = fetcher.normalize({"key": "/works/W1", "first_publish_year": None})
+    assert rec1.published_date is None
+
+    rec2 = fetcher.normalize({"key": "/works/W2", "first_publish_year": -1})
+    assert rec2.published_date is None
+
+
+def test_extract_language() -> None:
+    fetcher = OpenLibraryFetcher(OpenLibraryConfig(query="ai", max_pages=1))
+    assert fetcher.extract_language({"language": ["eng"]}) == "eng"
+    assert fetcher.extract_language({"language": ["", "fra"]}) == "fra"
+    assert fetcher.extract_language({}) is None
+    assert fetcher.extract_language({"language": "not a list"}) is None
+
+
 def test_fetch_pages_success(monkeypatch) -> None:
     fetcher = OpenLibraryFetcher(
         OpenLibraryConfig(query="ai", max_pages=1, page_size=2)
@@ -48,6 +65,29 @@ def test_fetch_pages_success(monkeypatch) -> None:
     pages = list(fetcher.fetch_pages())
     assert len(pages) == 1
     assert [item["key"] for item in pages[0]] == ["/w1", "/w2"]
+
+
+def test_fetch_pages_empty(monkeypatch) -> None:
+    fetcher = OpenLibraryFetcher(OpenLibraryConfig(query="ai", max_pages=1))
+    payload = {"docs": []}
+    monkeypatch.setattr(fetcher.session, "get", lambda *a, **k: _Resp(payload))
+    pages = list(fetcher.fetch_pages())
+    assert len(pages) == 0
+
+
+class _RespInvalidJson:
+    def raise_for_status(self) -> None:
+        pass
+
+    def json(self):
+        raise ValueError("Invalid JSON")
+
+
+def test_fetch_pages_invalid_json(monkeypatch) -> None:
+    fetcher = OpenLibraryFetcher(OpenLibraryConfig(query="ai", max_pages=1))
+    monkeypatch.setattr(fetcher.session, "get", lambda *a, **k: _RespInvalidJson())
+    with pytest.raises(FetcherError, match="invalid JSON"):
+        list(fetcher.fetch_pages())
 
 
 def test_fetch_pages_wraps_request_error(monkeypatch) -> None:

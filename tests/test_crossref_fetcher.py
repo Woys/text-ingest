@@ -82,6 +82,35 @@ def test_normalize_missing_date(fetcher) -> None:
     assert rec.published_date is None
 
 
+def test_normalize_bad_date(fetcher) -> None:
+    item = _make_item()
+    item["published"] = {"date-parts": [["invalid", "date"]]}
+    rec = fetcher.normalize(item)
+    assert rec.published_date is None
+
+
+def test_normalize_no_subject(fetcher) -> None:
+    item = _make_item()
+    item.pop("subject", None)
+    rec = fetcher.normalize(item)
+    assert rec.topic is None
+
+
+def test_normalize_ft_url_intended_application(fetcher) -> None:
+    item = _make_item()
+    item["link"] = [
+        {"URL": "http://fallback.com"},
+        {"URL": "http://ft.com", "intended-application": "text-mining"},
+    ]
+    rec = fetcher.normalize(item)
+    assert rec.full_text_url == "http://ft.com"
+
+
+def test_extract_language(fetcher) -> None:
+    assert fetcher.extract_language({"language": "en"}) == "en"
+    assert fetcher.extract_language({}) is None
+
+
 def test_streams_records(fake_response_factory, monkeypatch) -> None:
     payload = {"message": {"items": [_make_item(DOI="a"), _make_item(DOI="b")]}}
     config = CrossRefConfig(query="cancer prevention", max_pages=1, rows=2)
@@ -144,3 +173,47 @@ def test_advances_offset_between_pages(fake_response_factory, monkeypatch) -> No
     records = list(fetcher.fetch_all())
     assert len(records) == 1
     assert offsets == [0, 1]
+
+
+def test_fetch_pages_publication_date_mode(fake_response_factory, monkeypatch) -> None:
+    config = CrossRefConfig(
+        query="q",
+        max_pages=1,
+        rows=1,
+        start_date=date(2023, 1, 1),
+        end_date=date(2023, 1, 2),
+        date_mode="publication",
+    )
+    config.http.email = "test@example.com"
+    fetcher = CrossRefFetcher(config)
+
+    def fake_get(url, params, timeout):
+        assert params["filter"] == "from-pub-date:2023-01-01,until-pub-date:2023-01-02"
+        assert params["query"] == "q"
+        assert params["mailto"] == "test@example.com"
+        return fake_response_factory({"message": {"items": [_make_item()]}})
+
+    monkeypatch.setattr(fetcher.session, "get", fake_get)
+    assert len(list(fetcher.fetch_all())) == 1
+
+
+def test_fetch_pages_update_date_mode(fake_response_factory, monkeypatch) -> None:
+    config = CrossRefConfig(
+        max_pages=1,
+        rows=1,
+        start_date=date(2023, 1, 1),
+        end_date=date(2023, 1, 2),
+        date_mode="update",
+    )
+    fetcher = CrossRefFetcher(config)
+
+    def fake_get(url, params, timeout):
+        assert (
+            params["filter"]
+            == "from-update-date:2023-01-01,until-update-date:2023-01-02"
+        )
+        assert "query" not in params
+        return fake_response_factory({"message": {"items": [_make_item()]}})
+
+    monkeypatch.setattr(fetcher.session, "get", fake_get)
+    assert len(list(fetcher.fetch_all())) == 1

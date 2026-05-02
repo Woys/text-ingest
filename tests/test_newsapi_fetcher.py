@@ -64,6 +64,22 @@ def test_normalize_blank_author(fetcher) -> None:
     assert rec.authors == []
 
 
+def test_normalize_empty_source(fetcher) -> None:
+    article = _make_article(source=None)
+    rec = fetcher.normalize(article)
+    assert rec.topic is None
+
+    article2 = _make_article(source={"name": ""})
+    rec2 = fetcher.normalize(article2)
+    assert rec2.topic is None
+
+
+def test_extract_language(fetcher) -> None:
+    # Not present in article usually, but interface should handle it
+    assert fetcher.extract_language({"language": "fr"}) == "fr"
+    assert fetcher.extract_language({}) is None
+
+
 def test_normalize_missing_date(fetcher) -> None:
     article = _make_article(publishedAt=None)
     rec = fetcher.normalize(article)
@@ -211,3 +227,34 @@ def test_fetch_pages_requests_all_configured_languages(monkeypatch) -> None:
     pages = list(fetcher.fetch_pages())
     assert len(pages) == 2
     assert called_languages == ["en", "fr"]
+
+
+def test_fetch_pages_with_date_params(monkeypatch) -> None:
+    monkeypatch.setenv("NEWSAPI_KEY", "test_key")
+    fetcher = NewsApiFetcher(
+        NewsApiConfig(
+            query="AI",
+            max_pages=1,
+            start_date=date(2023, 1, 1),
+            end_date=date(2023, 12, 31),
+        )
+    )
+
+    class _Resp:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._payload
+
+    def fake_get(url, params, timeout):
+        assert params["from"] == "2023-01-01"
+        assert params["to"] == "2023-12-31"
+        return _Resp({"status": "ok", "totalResults": 0, "articles": []})
+
+    monkeypatch.setattr(fetcher.session, "get", fake_get)
+    pages = list(fetcher.fetch_pages())
+    assert len(pages) == 0
