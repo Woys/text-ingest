@@ -47,3 +47,28 @@ def test_context_manager_closes_handle(tmp_path) -> None:
     with JsonlSink(JsonlSinkConfig(output_file=path, append=False)) as sink:
         sink.write(NormalizedRecord(source="s", raw_payload={}))
     assert sink._handle is None or sink._handle.closed
+
+
+def test_write_many_writes_each_record_incrementally(monkeypatch, tmp_path) -> None:
+    sink = JsonlSink(JsonlSinkConfig(output_file=str(tmp_path / "out.jsonl")))
+    writes: list[str] = []
+
+    class _Handle:
+        closed = False
+
+        def write(self, value: str) -> None:
+            writes.append(value)
+
+    def ensure_open() -> None:
+        sink._handle = _Handle()  # type: ignore[assignment]
+
+    monkeypatch.setattr(sink, "_ensure_open", ensure_open)
+    sink.write_many(
+        [
+            NormalizedRecord(source="s", external_id="1", raw_payload={}),
+            NormalizedRecord(source="s", external_id="2", raw_payload={}),
+        ]
+    )
+
+    assert len(writes) == 2
+    assert all(value.endswith("\n") for value in writes)

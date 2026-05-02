@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import AsyncIterator, Iterator
 
     from pydantic import BaseModel
 
@@ -17,6 +18,7 @@ class BaseFetcher(ABC):
     """Contract every fetcher must fulfil."""
 
     config_model: ClassVar[type[BaseModel]]
+    _ASYNC_SENTINEL: ClassVar[object] = object()
 
     def __init__(self, config: BaseModel) -> None:
         self.config = config
@@ -74,4 +76,25 @@ class BaseFetcher(ABC):
     def fetch_all(self) -> Iterator[NormalizedRecord]:
         """Yield normalized records (legacy convenience path)."""
         for item in self.fetch_raw():
+            yield self.normalize(item)
+
+    async def async_fetch_pages(self) -> AsyncIterator[list[dict[str, Any]]]:
+        """Yield raw API pages without blocking the event loop."""
+        iterator = iter(self.fetch_pages())
+        while True:
+            page = await asyncio.to_thread(next, iterator, self._ASYNC_SENTINEL)
+            if page is self._ASYNC_SENTINEL:
+                return
+            yield cast("list[dict[str, Any]]", page)
+
+    async def async_fetch_raw(self) -> AsyncIterator[dict[str, Any]]:
+        """Yield raw records from all pages without blocking the event loop."""
+        async for items in self.async_fetch_pages():
+            for item in items:
+                if self._matches_language_filter(item):
+                    yield item
+
+    async def async_fetch_all(self) -> AsyncIterator[NormalizedRecord]:
+        """Yield normalized records without blocking the event loop."""
+        async for item in self.async_fetch_raw():
             yield self.normalize(item)

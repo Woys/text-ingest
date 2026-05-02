@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import Future
 from tempfile import SpooledTemporaryFile
 from types import SimpleNamespace
 
@@ -150,6 +151,52 @@ def test_enrich_many_empty_and_failure_fallback(monkeypatch) -> None:
 
     assert out[0].full_text == "ok"
     assert out[1].external_id == "2"
+
+
+def test_enrich_many_bounds_submitted_futures(monkeypatch) -> None:
+    resolver = FullTextResolver(FullTextResolutionConfig(max_workers=2))
+    records = [_record(external_id=str(i), full_text_url=f"u{i}") for i in range(5)]
+    submitted: dict[Future[NormalizedRecord], NormalizedRecord] = {}
+    observed_pending_sizes: list[int] = []
+
+    class _Executor:
+        def __init__(self, max_workers: int) -> None:
+            assert max_workers == 2
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> None:
+            return None
+
+        def submit(self, fn, record):
+            del fn
+            future: Future[NormalizedRecord] = Future()
+            submitted[future] = record
+            return future
+
+    def fake_wait(futures, return_when):
+        del return_when
+        observed_pending_sizes.append(len(futures))
+        future = next(iter(futures))
+        record = submitted[future]
+        record.full_text = f"text-{record.external_id}"
+        future.set_result(record)
+        return {future}, set(futures) - {future}
+
+    monkeypatch.setattr("data_ingestion.full_text.ThreadPoolExecutor", _Executor)
+    monkeypatch.setattr("data_ingestion.full_text.wait", fake_wait)
+
+    out = resolver.enrich_many(records)
+
+    assert [record.full_text for record in out] == [
+        "text-0",
+        "text-1",
+        "text-2",
+        "text-3",
+        "text-4",
+    ]
+    assert max(observed_pending_sizes) == 2
 
 
 def test_to_full_text_document_and_clean_text() -> None:

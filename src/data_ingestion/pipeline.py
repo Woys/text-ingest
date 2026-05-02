@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -19,12 +20,19 @@ from data_ingestion.sinks.jsonl import JsonlSink
 from data_ingestion.transforms import TransformationEngine
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator
+    from collections.abc import AsyncIterator, Iterable, Iterator
 
     from data_ingestion.fetchers.base import BaseFetcher
     from data_ingestion.sinks.base import BaseSink
 
 logger = get_logger(__name__)
+
+
+class _AsyncDone:
+    pass
+
+
+_ASYNC_DONE = _AsyncDone()
 
 
 class DataDumperPipeline:
@@ -44,6 +52,14 @@ class DataDumperPipeline:
         self.transform_engine = transform_engine
         self.checkpoint_path = checkpoint_path
         self.resume = resume
+        self._preserve_raw_payload = (
+            self.config.runtime.write_raw_payload
+            or not self.config.runtime.drop_raw_payload_after_transform
+            or (
+                self.transform_engine is not None
+                and self.transform_engine.uses_raw_payload()
+            )
+        )
         self.full_text_resolver = (
             FullTextResolver() if self.config.runtime.enrich_full_text else None
         )
@@ -58,6 +74,12 @@ class DataDumperPipeline:
             self.resume,
             self.checkpoint_path,
         )
+
+    def _prepare_for_batch(self, record: NormalizedRecord) -> NormalizedRecord:
+        if self._preserve_raw_payload:
+            return record
+        record.raw_payload = {}
+        return record
 
     def _load_checkpoint_sources(self) -> set[str]:
         if self.checkpoint_path is None:
@@ -233,6 +255,7 @@ class DataDumperPipeline:
                                 continue
                             record = transformed
 
+                        record = self._prepare_for_batch(record)
                         batch.append(record)
                         source_count += 1
                         total_records += 1
@@ -413,6 +436,182 @@ def stream_transformed_records(
         transform_spec=transform_spec,
         start_date=start_date,
         end_date=end_date,
+    ):
+        assert isinstance(record, NormalizedRecord)
+        yield source, record
+
+
+async def _async_iter_fetcher_items(
+    fetcher: BaseFetcher,
+    *,
+    raw: bool,
+) -> AsyncIterator[tuple[str, dict[str, Any] | NormalizedRecord]]:
+    if raw:
+        async for item in fetcher.async_fetch_raw():
+            yield fetcher.source_name, item
+        return
+
+    async for record in fetcher.async_fetch_all():
+        yield fetcher.source_name, record
+
+
+async def _async_stream_records_sequential(
+    fetchers: list[BaseFetcher],
+    *,
+    raw: bool,
+    transform_engine: TransformationEngine | None,
+) -> AsyncIterator[tuple[str, dict[str, Any] | NormalizedRecord]]:
+    for fetcher in fetchers:
+        yielded = 0
+        async for source, item in _async_iter_fetcher_items(fetcher, raw=raw):
+            if not raw and transform_engine is not None:
+                assert isinstance(item, NormalizedRecord)
+                transformed = transform_engine.apply(item)
+                if transformed is None:
+                    continue
+                item = transformed
+
+            yielded += 1
+            yield source, item
+
+        logger.info(
+            "async_stream_records source=%s yielded=%d",
+            fetcher.source_name,
+            yielded,
+        )
+
+
+async def _async_stream_records_concurrent(
+    fetchers: list[BaseFetcher],
+    *,
+    raw: bool,
+    transform_engine: TransformationEngine | None,
+    max_source_concurrency: int | None,
+    max_async_queue_size: int,
+) -> AsyncIterator[tuple[str, dict[str, Any] | NormalizedRecord]]:
+    queue: asyncio.Queue[
+        tuple[str, dict[str, Any] | NormalizedRecord | BaseException | _AsyncDone]
+    ] = asyncio.Queue(maxsize=max_async_queue_size)
+    concurrency = max_source_concurrency or len(fetchers) or 1
+    semaphore = asyncio.Semaphore(concurrency)
+
+    async def produce(fetcher: BaseFetcher) -> None:
+        async with semaphore:
+            try:
+                async for source, item in _async_iter_fetcher_items(fetcher, raw=raw):
+                    await queue.put((source, item))
+            except BaseException as exc:
+                await queue.put((fetcher.source_name, exc))
+            finally:
+                await queue.put((fetcher.source_name, _ASYNC_DONE))
+
+    tasks = [asyncio.create_task(produce(fetcher)) for fetcher in fetchers]
+    remaining = len(tasks)
+
+    try:
+        while remaining:
+            source, item = await queue.get()
+            if isinstance(item, _AsyncDone):
+                remaining -= 1
+                continue
+
+            if isinstance(item, BaseException):
+                raise item
+
+            if not raw and transform_engine is not None:
+                assert isinstance(item, NormalizedRecord)
+                transformed = transform_engine.apply(item)
+                if transformed is None:
+                    continue
+                item = transformed
+
+            yield source, item
+    finally:
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+
+async def async_stream_records(
+    fetcher_specs: list[dict[str, Any]],
+    *,
+    raw: bool = True,
+    transform_spec: dict[str, Any] | str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    concurrent_sources: bool = False,
+    max_source_concurrency: int | None = None,
+    max_async_queue_size: int = 100,
+) -> AsyncIterator[tuple[str, dict[str, Any] | NormalizedRecord]]:
+    """Async sibling of `stream_records`.
+
+    Fetching is delegated to fetcher async wrappers, which run existing sync
+    source iterators in worker threads while preserving current quota controls.
+    """
+    logger.info(
+        "async_stream_records started raw=%s specs=%d start_date=%s end_date=%s "
+        "transforms_enabled=%s concurrent_sources=%s",
+        raw,
+        len(fetcher_specs),
+        start_date,
+        end_date,
+        transform_spec is not None,
+        concurrent_sources,
+    )
+
+    if raw and transform_spec is not None:
+        raise ValueError("transform_spec is only supported when raw=False")
+    if max_source_concurrency is not None and max_source_concurrency < 1:
+        raise ValueError("max_source_concurrency must be >= 1")
+    if max_async_queue_size < 1:
+        raise ValueError("max_async_queue_size must be >= 1")
+
+    specs = _apply_date_overrides(fetcher_specs, start_date, end_date)
+    fetchers = build_fetchers(specs)
+    transform_engine = (
+        TransformationEngine(transform_spec) if transform_spec is not None else None
+    )
+
+    if concurrent_sources:
+        async for item in _async_stream_records_concurrent(
+            fetchers,
+            raw=raw,
+            transform_engine=transform_engine,
+            max_source_concurrency=max_source_concurrency,
+            max_async_queue_size=max_async_queue_size,
+        ):
+            yield item
+        return
+
+    async for item in _async_stream_records_sequential(
+        fetchers,
+        raw=raw,
+        transform_engine=transform_engine,
+    ):
+        yield item
+
+
+async def async_stream_transformed_records(
+    fetcher_specs: list[dict[str, Any]],
+    *,
+    transform_spec: dict[str, Any] | str,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    concurrent_sources: bool = False,
+    max_source_concurrency: int | None = None,
+    max_async_queue_size: int = 100,
+) -> AsyncIterator[tuple[str, NormalizedRecord]]:
+    async for source, record in async_stream_records(
+        fetcher_specs,
+        raw=False,
+        transform_spec=transform_spec,
+        start_date=start_date,
+        end_date=end_date,
+        concurrent_sources=concurrent_sources,
+        max_source_concurrency=max_source_concurrency,
+        max_async_queue_size=max_async_queue_size,
     ):
         assert isinstance(record, NormalizedRecord)
         yield source, record

@@ -187,6 +187,17 @@ class TransformationEngine:
                 parts.append(str(value))
         return " ".join(parts).lower()
 
+    def uses_raw_payload(self) -> bool:
+        for transform in self.spec.transforms:
+            fields = getattr(transform, "fields", [])
+            keys = getattr(transform, "keys", [])
+            field = getattr(transform, "field", None)
+            if any(str(item).startswith("raw_payload") for item in [*fields, *keys]):
+                return True
+            if field == "raw_payload":
+                return True
+        return False
+
     @staticmethod
     def _hashable(value: Any) -> Any:
         if isinstance(value, dict):

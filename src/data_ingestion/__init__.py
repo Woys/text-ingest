@@ -40,6 +40,8 @@ from data_ingestion.models import (
 )
 from data_ingestion.pipeline import (
     DataDumperPipeline,
+    async_stream_records,
+    async_stream_transformed_records,
     run_to_jsonl,
     run_to_jsonl_with_full_text,
     stream_records,
@@ -81,6 +83,8 @@ __all__ = [
     "WikipediaConfig",
     "__version__",
     "analyze_topic_trends",
+    "async_stream_records",
+    "async_stream_transformed_records",
     "build_fetcher",
     "build_fetchers",
     "iter_export_rows",

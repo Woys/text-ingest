@@ -4,7 +4,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from data_ingestion.config import JsonlSinkConfig, PipelineConfig
+from data_ingestion.config import (
+    JsonlSinkConfig,
+    PipelineConfig,
+    RuntimeOptimizationConfig,
+)
 from data_ingestion.exceptions import PipelineError
 from data_ingestion.models import NormalizedRecord
 from data_ingestion.pipeline import DataDumperPipeline
@@ -253,6 +257,80 @@ def test_pipeline_applies_transform_engine(tmp_path) -> None:
     assert len(records) == 1
     assert records[0]["external_id"] == "1"
     assert records[0]["topic"] == "library-transform"
+
+
+def test_pipeline_drops_raw_payload_by_default(tmp_path) -> None:
+    pipeline = DataDumperPipeline(sink=_make_sink(tmp_path))
+    fetcher = _FakeFetcher(
+        "openalex",
+        [
+            NormalizedRecord(
+                source="openalex",
+                external_id="1",
+                title="A",
+                raw_payload={"large": "payload"},
+            )
+        ],
+    )
+
+    pipeline.run([fetcher])
+
+    line = (tmp_path / "out.jsonl").read_text().splitlines()[0]
+    assert json.loads(line)["raw_payload"] == {}
+
+
+def test_pipeline_preserves_raw_payload_when_configured(tmp_path) -> None:
+    config = PipelineConfig(runtime=RuntimeOptimizationConfig(write_raw_payload=True))
+    pipeline = DataDumperPipeline(sink=_make_sink(tmp_path), config=config)
+    fetcher = _FakeFetcher(
+        "openalex",
+        [
+            NormalizedRecord(
+                source="openalex",
+                external_id="1",
+                title="A",
+                raw_payload={"large": "payload"},
+            )
+        ],
+    )
+
+    pipeline.run([fetcher])
+
+    line = (tmp_path / "out.jsonl").read_text().splitlines()[0]
+    assert json.loads(line)["raw_payload"] == {"large": "payload"}
+
+
+def test_pipeline_preserves_raw_payload_when_transform_uses_it(tmp_path) -> None:
+    from data_ingestion.transforms import TransformationEngine
+
+    engine = TransformationEngine(
+        {
+            "transforms": [
+                {
+                    "op": "include_terms",
+                    "terms": ["needle"],
+                    "fields": ["raw_payload.text"],
+                }
+            ]
+        }
+    )
+    pipeline = DataDumperPipeline(sink=_make_sink(tmp_path), transform_engine=engine)
+    fetcher = _FakeFetcher(
+        "openalex",
+        [
+            NormalizedRecord(
+                source="openalex",
+                external_id="1",
+                title="A",
+                raw_payload={"text": "needle"},
+            )
+        ],
+    )
+
+    pipeline.run([fetcher])
+
+    line = (tmp_path / "out.jsonl").read_text().splitlines()[0]
+    assert json.loads(line)["raw_payload"] == {"text": "needle"}
 
 
 def test_resume_requires_checkpoint_path(tmp_path) -> None:

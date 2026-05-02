@@ -422,6 +422,7 @@ class FullTextResolutionConfig(BaseModel):
 class RuntimeOptimizationConfig(BaseModel):
     enrich_full_text: bool = False
     write_raw_payload: bool = False
+    drop_raw_payload_after_transform: bool = True
     full_text_batch_size: int = Field(default=10, ge=1, le=1000)
     sink_write_batch_size: int = Field(default=500, ge=1, le=100_000)
     partition_by_source: bool = False

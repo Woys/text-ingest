@@ -95,7 +95,7 @@ def test_csv_sink_writerows_error(monkeypatch, tmp_path) -> None:
     sink = CsvSink(CsvSinkConfig(output_file=str(path), append=False))
 
     class _Writer:
-        def writerows(self, rows):
+        def writerow(self, row):
             raise csv.Error("bad-rows")
 
     sink._ensure_open(["source"])
@@ -103,3 +103,25 @@ def test_csv_sink_writerows_error(monkeypatch, tmp_path) -> None:
 
     with pytest.raises(SinkError, match="Failed to write CSV rows"):
         sink.write_many([_record("1")])
+
+
+def test_csv_sink_write_many_streams_rows(monkeypatch, tmp_path) -> None:
+    path = tmp_path / "stream.csv"
+    sink = CsvSink(CsvSinkConfig(output_file=str(path), append=False))
+    written_rows: list[dict[str, object]] = []
+
+    class _Writer:
+        def writerow(self, row):
+            written_rows.append(row)
+
+        def writerows(self, rows):
+            raise AssertionError("writerows should not be used")
+
+    def ensure_open(fieldnames):
+        del fieldnames
+        sink._writer = _Writer()  # type: ignore[assignment]
+
+    monkeypatch.setattr(sink, "_ensure_open", ensure_open)
+    sink.write_many([_record("1"), _record("2")])
+
+    assert [row["external_id"] for row in written_rows] == ["1", "2"]

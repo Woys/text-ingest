@@ -10,7 +10,6 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
-
 ROOT = Path(__file__).resolve().parent.parent
 SINKS_DIR = ROOT / "src" / "data_ingestion" / "sinks"
 DOCS_FILE = ROOT / "docs" / "SINK_DOCS.md"
@@ -122,7 +121,7 @@ def main() -> int:
         return 1
 
     missing = [name for name in sinks if name not in documented]
-    orphaned = sorted(name for name in documented.keys() if name not in sinks)
+    orphaned = sorted(name for name in documented if name not in sinks)
 
     if missing:
         print("error: missing sink docs blocks for:", file=sys.stderr)

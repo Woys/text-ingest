@@ -6,7 +6,7 @@ import html
 import json
 import re
 import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from tempfile import SpooledTemporaryFile
 from typing import TYPE_CHECKING, Any
 
@@ -112,18 +112,32 @@ class FullTextResolver:
         results: dict[int, NormalizedRecord] = {}
 
         with ThreadPoolExecutor(max_workers=self.config.max_workers) as executor:
-            futures = {
-                executor.submit(self.enrich_record, record): index
-                for index, record in indexed_records
-            }
+            pending_items = iter(indexed_records)
+            futures: dict[Future[NormalizedRecord], int] = {}
 
-            for future in as_completed(futures):
-                index = futures[future]
-                try:
-                    results[index] = future.result()
-                except Exception as exc:
-                    logger.warning("Concurrent full-text enrichment failed: %s", exc)
-                    results[index] = record_list[index]
+            def submit_until_full() -> None:
+                while len(futures) < self.config.max_workers:
+                    try:
+                        index, record = next(pending_items)
+                    except StopIteration:
+                        return
+                    futures[executor.submit(self.enrich_record, record)] = index
+
+            submit_until_full()
+
+            while futures:
+                done, _pending = wait(futures, return_when=FIRST_COMPLETED)
+                for future in done:
+                    index = futures.pop(future)
+                    try:
+                        results[index] = future.result()
+                    except Exception as exc:
+                        logger.warning(
+                            "Concurrent full-text enrichment failed: %s",
+                            exc,
+                        )
+                        results[index] = record_list[index]
+                submit_until_full()
 
         return [results[i] for i in range(len(record_list))]
 

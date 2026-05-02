@@ -271,6 +271,26 @@ def test_transformation_engine_uses_raw_payload_path_and_hashable() -> None:
     assert engine.apply(rec2) is None
 
 
+def test_transformation_engine_reports_raw_payload_usage() -> None:
+    raw_engine = TransformationEngine(
+        {
+            "transforms": [
+                {
+                    "op": "include_terms",
+                    "terms": ["x"],
+                    "fields": ["raw_payload.text"],
+                }
+            ]
+        }
+    )
+    plain_engine = TransformationEngine(
+        {"transforms": [{"op": "include_terms", "terms": ["x"], "fields": ["title"]}]}
+    )
+
+    assert raw_engine.uses_raw_payload() is True
+    assert plain_engine.uses_raw_payload() is False
+
+
 def test_transformation_engine_term_validators_reject_blank_terms() -> None:
     import pytest
 

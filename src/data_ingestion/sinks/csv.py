@@ -64,11 +64,12 @@ class CsvSink(BaseSink):
     def write_many(self, records: list[NormalizedRecord]) -> None:
         if not records:
             return
-        rows = [self._record_to_row(record) for record in records]
-        self._ensure_open(list(rows[0].keys()))
-        assert self._writer is not None
         try:
-            self._writer.writerows(rows)
+            for record in records:
+                row = self._record_to_row(record)
+                self._ensure_open(list(row.keys()))
+                assert self._writer is not None
+                self._writer.writerow(row)
         except csv.Error as exc:
             raise SinkError(f"Failed to write CSV rows: {exc}") from exc
 

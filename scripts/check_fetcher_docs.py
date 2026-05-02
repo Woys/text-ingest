@@ -10,7 +10,6 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
-
 ROOT = Path(__file__).resolve().parent.parent
 FETCHERS_DIR = ROOT / "src" / "data_ingestion" / "fetchers"
 DOCS_FILE = ROOT / "docs" / "FETCHER_DOCS.md"
@@ -124,7 +123,7 @@ def main() -> int:
         return 1
 
     missing = [name for name in fetchers if name not in documented]
-    orphaned = sorted(name for name in documented.keys() if name not in fetchers)
+    orphaned = sorted(name for name in documented if name not in fetchers)
 
     if missing:
         print("error: missing fetcher docs blocks for:", file=sys.stderr)

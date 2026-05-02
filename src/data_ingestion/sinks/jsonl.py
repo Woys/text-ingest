@@ -53,11 +53,11 @@ class JsonlSink(BaseSink):
         self._ensure_open()
         assert self._handle is not None
         try:
-            payload = "".join(
-                record.to_json_line(include_raw_payload=self.include_raw_payload) + "\n"
-                for record in records
-            )
-            self._handle.write(payload)
+            for record in records:
+                self._handle.write(
+                    record.to_json_line(include_raw_payload=self.include_raw_payload)
+                    + "\n"
+                )
         except OSError as exc:
             raise SinkError(
                 f"Cannot write to output file '{self.config.output_file}': {exc}"
