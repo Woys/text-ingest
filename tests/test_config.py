@@ -6,10 +6,13 @@ from pydantic import ValidationError
 from data_ingestion.config import (
     CrossRefConfig,
     FetcherSpec,
+    GitHubConfig,
+    HttpClientConfig,
     JsonlSinkConfig,
     NewsApiConfig,
     OpenAlexConfig,
     PipelineConfig,
+    StackExchangeConfig,
     WebsiteConfig,
     WebsiteHtmlConfig,
 )
@@ -20,6 +23,23 @@ def test_openalex_config_strips_query_whitespace() -> None:
     assert config.query == "cancer prevention"
     assert config.max_pages == 3
     assert config.per_page == 50
+
+
+def test_source_config_accepts_unbounded_max_pages() -> None:
+    assert OpenAlexConfig(query="test", max_pages=None).max_pages is None
+    assert OpenAlexConfig(query="test", max_pages=0).max_pages == 0
+
+
+def test_http_config_has_request_budget_default() -> None:
+    config = HttpClientConfig()
+    assert config.max_requests_per_session == 1000
+
+
+def test_source_http_configs_have_conservative_request_budgets() -> None:
+    assert OpenAlexConfig(query="test").http.max_requests_per_session == 5000
+    assert NewsApiConfig(query="test", api_key="k").http.max_requests_per_session == 90
+    assert GitHubConfig(query="test").http.max_requests_per_session == 60
+    assert StackExchangeConfig(query="test").http.max_requests_per_session == 250
 
 
 def test_crossref_config_rejects_blank_query() -> None:

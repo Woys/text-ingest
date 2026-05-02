@@ -132,7 +132,9 @@ class CrossRefFetcher(BaseFetcher):
         if self.config.http.email:
             base_params["mailto"] = self.config.http.email
 
-        for page_idx in range(self.config.max_pages):
+        pages_fetched = 0
+        page_idx = 0
+        while not self._page_limit_reached(pages_fetched):
             params = {**base_params, "offset": page_idx * self.config.rows}
             res = self.session.get(
                 self.BASE_URL,
@@ -147,6 +149,8 @@ class CrossRefFetcher(BaseFetcher):
                 return
 
             yield items
+            pages_fetched += 1
+            page_idx += 1
 
     def extract_language(self, item: dict[str, Any]) -> str | None:
         raw = item.get("language")

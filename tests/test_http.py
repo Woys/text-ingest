@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 
 from data_ingestion.config import HttpClientConfig
+from data_ingestion.exceptions import QuotaExceededError
 from data_ingestion.http import (
     RETRIABLE_STATUS_CODES,
     SmartSession,
@@ -160,6 +161,44 @@ def test_smart_session_releases_limiter_on_get_exception(monkeypatch) -> None:
 
     assert limiter.acquire_calls == 1
     assert limiter.release_calls == 1
+
+
+def test_smart_session_blocks_request_after_budget(monkeypatch) -> None:
+    limiter = _FakeLimiter()
+    monkeypatch.setattr(
+        "data_ingestion.http.GLOBAL_RATE_LIMITER_REGISTRY",
+        _FakeRegistry(limiter),
+    )
+
+    cfg = HttpClientConfig(max_retries=0, max_requests_per_session=1)
+    session = SmartSession(_FakeSession([_FakeResponse(200)]), cfg)
+
+    assert isinstance(session.get("https://example.com"), _FakeResponse)
+    with pytest.raises(QuotaExceededError, match="quota exhausted"):
+        session.get("https://example.com")
+
+    assert limiter.acquire_calls == 1
+    assert limiter.release_calls == 1
+
+
+def test_smart_session_retries_consume_request_budget(monkeypatch) -> None:
+    limiter = _FakeLimiter()
+    monkeypatch.setattr(
+        "data_ingestion.http.GLOBAL_RATE_LIMITER_REGISTRY",
+        _FakeRegistry(limiter),
+    )
+    monkeypatch.setattr("data_ingestion.http.parse_retry_after", lambda _: 0.0)
+
+    cfg = HttpClientConfig(max_retries=1, max_requests_per_session=1)
+    first = _FakeResponse(next(iter(RETRIABLE_STATUS_CODES)))
+    session = SmartSession(_FakeSession([first, _FakeResponse(200)]), cfg)
+
+    with pytest.raises(QuotaExceededError, match="quota exhausted"):
+        session.get("https://example.com")
+
+    assert limiter.acquire_calls == 1
+    assert limiter.release_calls == 1
+    assert first.closed is True
 
 
 def test_build_retry_session_sets_headers() -> None:

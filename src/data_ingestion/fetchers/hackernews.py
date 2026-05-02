@@ -123,7 +123,9 @@ class HackerNewsFetcher(BaseFetcher):
         elif self.config.hn_item_type == "comment":
             tags.append("comment")
 
-        for page in range(self.config.max_pages):
+        pages_fetched = 0
+        page = 0
+        while not self._page_limit_reached(pages_fetched):
             params: dict[str, Any] = {
                 "hitsPerPage": self.config.hits_per_page,
                 "page": page,
@@ -161,11 +163,13 @@ class HackerNewsFetcher(BaseFetcher):
                 return
 
             yield hits
+            pages_fetched += 1
 
             nb_pages = payload.get("nbPages", 0)
             if page >= nb_pages - 1:
                 logger.info("HackerNews: reached last available page %d", page)
                 return
+            page += 1
 
     def extract_language(self, item: dict[str, Any]) -> str | None:
         del item

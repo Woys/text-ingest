@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from datetime import date
+from urllib.parse import unquote_plus
+
 import pytest
 import requests
 
@@ -64,6 +67,61 @@ def test_fetch_pages_success(monkeypatch) -> None:
     assert len(pages) == 1
     assert [item["guid"] for item in pages[0]] == ["1", "2"]
     assert all(item["language"] == "en-US" for item in pages[0])
+
+
+def test_fetch_pages_adds_date_operators_and_filters_items(monkeypatch) -> None:
+    fetcher = GoogleNewsFetcher(
+        GoogleNewsConfig(
+            query="ai",
+            start_date=date(2026, 3, 10),
+            end_date=date(2026, 3, 10),
+            page_size=10,
+        )
+    )
+    xml = """
+    <rss>
+      <channel>
+        <language>en-US</language>
+        <item>
+          <title>Before</title>
+          <link>https://example.com/before</link>
+          <guid>before</guid>
+          <pubDate>Mon, 09 Mar 2026 23:59:00 GMT</pubDate>
+          <description>old</description>
+        </item>
+        <item>
+          <title>Inside</title>
+          <link>https://example.com/inside</link>
+          <guid>inside</guid>
+          <pubDate>Tue, 10 Mar 2026 10:00:00 GMT</pubDate>
+          <description>new</description>
+        </item>
+        <item>
+          <title>After</title>
+          <link>https://example.com/after</link>
+          <guid>after</guid>
+          <pubDate>Wed, 11 Mar 2026 00:01:00 GMT</pubDate>
+          <description>future</description>
+        </item>
+      </channel>
+    </rss>
+    """
+    requested_urls: list[str] = []
+
+    def mock_get(url, **kwargs):
+        del kwargs
+        requested_urls.append(url)
+        return _Resp(xml)
+
+    monkeypatch.setattr(fetcher.session, "get", mock_get)
+
+    pages = list(fetcher.fetch_pages())
+
+    assert "after%3A2026-03-10" in requested_urls[0]
+    assert "before%3A2026-03-11" in requested_urls[0]
+    assert "ai after:2026-03-10 before:2026-03-11" in unquote_plus(requested_urls[0])
+    assert len(pages) == 1
+    assert [item["guid"] for item in pages[0]] == ["inside"]
 
 
 def test_fetch_pages_wraps_request_error(monkeypatch) -> None:

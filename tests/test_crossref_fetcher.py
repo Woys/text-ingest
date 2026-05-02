@@ -157,6 +157,29 @@ def test_stops_on_empty_items(fake_response_factory, monkeypatch) -> None:
     assert call_count == 1
 
 
+def test_zero_max_pages_fetches_until_empty(fake_response_factory, monkeypatch) -> None:
+    responses = [
+        {"message": {"items": [_make_item(DOI="a")]}},
+        {"message": {"items": [_make_item(DOI="b")]}},
+        {"message": {"items": []}},
+    ]
+    response_iter = iter(responses)
+    config = CrossRefConfig(query="q", max_pages=0, rows=1)
+    fetcher = CrossRefFetcher(config)
+    offsets: list[int] = []
+
+    def fake_get(url, params, timeout):
+        del url, timeout
+        offsets.append(params["offset"])
+        return fake_response_factory(next(response_iter))
+
+    monkeypatch.setattr(fetcher.session, "get", fake_get)
+
+    records = list(fetcher.fetch_all())
+    assert len(records) == 2
+    assert offsets == [0, 1, 2]
+
+
 def test_advances_offset_between_pages(fake_response_factory, monkeypatch) -> None:
     offsets: list[int] = []
 

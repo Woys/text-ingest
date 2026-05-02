@@ -20,11 +20,23 @@ class HttpClientConfig(BaseModel):
     respect_retry_after: bool = True
     max_retry_after_seconds: int = Field(default=120, ge=1, le=3600)
     jitter_seconds: float = Field(default=0.5, ge=0.0, le=10.0)
+    max_requests_per_session: int | None = Field(default=1000, ge=1)
+
+
+def _http_config(
+    *,
+    requests_per_second: float = 1.0,
+    max_requests_per_session: int | None = 1000,
+) -> HttpClientConfig:
+    return HttpClientConfig(
+        requests_per_second=requests_per_second,
+        max_requests_per_session=max_requests_per_session,
+    )
 
 
 class BaseSourceConfig(BaseModel):
     query: str | None = None
-    max_pages: int = Field(default=3, ge=1, le=100)
+    max_pages: int | None = Field(default=3, ge=0)
     start_date: date | None = None
     end_date: date | None = None
     languages: list[str] = Field(default_factory=list)
@@ -130,19 +142,25 @@ class BaseSourceConfig(BaseModel):
 
 class OpenAlexConfig(BaseSourceConfig):
     per_page: int = Field(default=50, ge=1, le=200)
-    http: HttpClientConfig = Field(default_factory=HttpClientConfig)
+    http: HttpClientConfig = Field(
+        default_factory=lambda: _http_config(max_requests_per_session=5000)
+    )
 
 
 class CrossRefConfig(BaseSourceConfig):
     rows: int = Field(default=50, ge=1, le=1000)
-    http: HttpClientConfig = Field(default_factory=HttpClientConfig)
+    http: HttpClientConfig = Field(
+        default_factory=lambda: _http_config(max_requests_per_session=5000)
+    )
 
 
 class NewsApiConfig(BaseSourceConfig):
     api_key: str = Field(default="", validate_default=True)
     page_size: int = Field(default=20, ge=1, le=100)
     language: str = Field(default="en", min_length=2, max_length=5)
-    http: HttpClientConfig = Field(default_factory=HttpClientConfig)
+    http: HttpClientConfig = Field(
+        default_factory=lambda: _http_config(max_requests_per_session=90)
+    )
 
     @field_validator("api_key", mode="before")
     @classmethod
@@ -161,37 +179,49 @@ class HackerNewsConfig(BaseSourceConfig):
     hits_per_page: int = Field(default=100, ge=1, le=1000)
     hn_item_type: Literal["story", "comment", "all"] = "story"
     use_date_sort: bool = True
-    http: HttpClientConfig = Field(default_factory=HttpClientConfig)
+    http: HttpClientConfig = Field(
+        default_factory=lambda: _http_config(max_requests_per_session=1000)
+    )
 
 
 class FederalRegisterConfig(BaseSourceConfig):
     per_page: int = Field(default=50, ge=1, le=1000)
-    http: HttpClientConfig = Field(default_factory=HttpClientConfig)
+    http: HttpClientConfig = Field(
+        default_factory=lambda: _http_config(max_requests_per_session=1000)
+    )
 
 
 class EdgarConfig(BaseSourceConfig):
     per_page: int = Field(default=50, ge=1, le=1000)
-    http: HttpClientConfig = Field(default_factory=HttpClientConfig)
+    http: HttpClientConfig = Field(
+        default_factory=lambda: _http_config(max_requests_per_session=5000)
+    )
 
 
 class WikipediaConfig(BaseSourceConfig):
     wiki_language: str = Field(default="en", min_length=2, max_length=10)
     page_size: int = Field(default=20, ge=1, le=50)
-    http: HttpClientConfig = Field(default_factory=HttpClientConfig)
+    http: HttpClientConfig = Field(
+        default_factory=lambda: _http_config(max_requests_per_session=1000)
+    )
 
 
 class RedditConfig(BaseSourceConfig):
     subreddit: str | None = None
     sort: Literal["new", "hot", "top", "relevance"] = "new"
     page_size: int = Field(default=25, ge=1, le=100)
-    http: HttpClientConfig = Field(default_factory=HttpClientConfig)
+    http: HttpClientConfig = Field(
+        default_factory=lambda: _http_config(max_requests_per_session=600)
+    )
 
 
 class GitHubConfig(BaseSourceConfig):
     per_page: int = Field(default=25, ge=1, le=100)
     sort: Literal["updated", "stars", "forks"] = "updated"
     github_token: str | None = None
-    http: HttpClientConfig = Field(default_factory=HttpClientConfig)
+    http: HttpClientConfig = Field(
+        default_factory=lambda: _http_config(max_requests_per_session=60)
+    )
 
     @field_validator("github_token", mode="before")
     @classmethod
@@ -205,12 +235,16 @@ class StackExchangeConfig(BaseSourceConfig):
     site: str = Field(default="stackoverflow", min_length=2)
     page_size: int = Field(default=25, ge=1, le=100)
     sort: Literal["activity", "creation", "votes"] = "activity"
-    http: HttpClientConfig = Field(default_factory=HttpClientConfig)
+    http: HttpClientConfig = Field(
+        default_factory=lambda: _http_config(max_requests_per_session=250)
+    )
 
 
 class OpenLibraryConfig(BaseSourceConfig):
     page_size: int = Field(default=25, ge=1, le=100)
-    http: HttpClientConfig = Field(default_factory=HttpClientConfig)
+    http: HttpClientConfig = Field(
+        default_factory=lambda: _http_config(max_requests_per_session=1000)
+    )
 
 
 class GoogleNewsConfig(BaseSourceConfig):
@@ -218,13 +252,20 @@ class GoogleNewsConfig(BaseSourceConfig):
     gl: str = Field(default="US", min_length=2, max_length=10)
     ceid: str = Field(default="US:en", min_length=2, max_length=20)
     page_size: int = Field(default=50, ge=1, le=1000)
-    http: HttpClientConfig = Field(default_factory=HttpClientConfig)
+    http: HttpClientConfig = Field(
+        default_factory=lambda: _http_config(
+            requests_per_second=0.2,
+            max_requests_per_session=200,
+        )
+    )
 
 
 class GuardianConfig(BaseSourceConfig):
     page_size: int = Field(default=25, ge=1, le=200)
     api_key: str = Field(default="test", min_length=1)
-    http: HttpClientConfig = Field(default_factory=HttpClientConfig)
+    http: HttpClientConfig = Field(
+        default_factory=lambda: _http_config(max_requests_per_session=500)
+    )
 
     @field_validator("api_key", mode="before")
     @classmethod

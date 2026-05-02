@@ -60,6 +60,10 @@ class BaseFetcher(ABC):
         primary = item_language.split("-", 1)[0]
         return primary in configured
 
+    def _page_limit_reached(self, pages_fetched: int) -> bool:
+        max_pages = getattr(self.config, "max_pages", None)
+        return max_pages is not None and max_pages > 0 and pages_fetched >= max_pages
+
     def fetch_raw(self) -> Iterator[dict[str, Any]]:
         """Yield raw records from all pages without normalization."""
         for items in self.fetch_pages():

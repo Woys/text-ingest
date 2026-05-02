@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from collections.abc import MutableMapping
 from typing import TYPE_CHECKING, Any
 
@@ -9,6 +10,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+from data_ingestion.exceptions import QuotaExceededError
 from data_ingestion.rate_limit import (
     GLOBAL_RATE_LIMITER_REGISTRY,
     RateLimitPolicy,
@@ -57,6 +59,8 @@ class SmartSession:
         self._session = session
         self._config = config
         self._policy = RateLimitPolicy.from_http_config(config)
+        self._request_count = 0
+        self._request_count_lock = threading.Lock()
 
     @property
     def headers(self) -> MutableMapping[str, str | bytes]:
@@ -65,12 +69,27 @@ class SmartSession:
     def close(self) -> None:
         self._session.close()
 
+    def _reserve_request_budget(self, url: str) -> None:
+        max_requests = self._config.max_requests_per_session
+        if max_requests is None:
+            return
+
+        with self._request_count_lock:
+            if self._request_count >= max_requests:
+                raise QuotaExceededError(
+                    "Configured HTTP request quota exhausted "
+                    f"for this session: max_requests_per_session={max_requests}, "
+                    f"url={url}"
+                )
+            self._request_count += 1
+
     def get(self, url: str, **kwargs: Any) -> requests.Response | _ManagedResponse:
         stream = bool(kwargs.get("stream", False))
         attempts = max(1, self._config.max_retries + 1)
         limiter = GLOBAL_RATE_LIMITER_REGISTRY.get_limiter(url, self._policy)
 
         for attempt in range(1, attempts + 1):
+            self._reserve_request_budget(url)
             limiter.acquire()
 
             try:

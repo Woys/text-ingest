@@ -73,7 +73,11 @@ class StackExchangeFetcher(BaseFetcher):
         return "en"
 
     def fetch_pages(self) -> Iterator[list[dict[str, Any]]]:
-        for page in range(1, self.config.max_pages + 1):
+        from datetime import datetime, time, timedelta, timezone
+
+        pages_fetched = 0
+        page = 1
+        while not self._page_limit_reached(pages_fetched):
             params: dict[str, Any] = {
                 "site": self.config.site,
                 "order": "desc",
@@ -84,6 +88,21 @@ class StackExchangeFetcher(BaseFetcher):
             }
             if self.config.query:
                 params["q"] = self.config.query
+
+            if self.config.start_date is not None:
+                start_dt = datetime.combine(
+                    self.config.start_date,
+                    time.min,
+                    tzinfo=timezone.utc,
+                )
+                params["fromdate"] = int(start_dt.timestamp())
+            if self.config.end_date is not None:
+                end_dt = datetime.combine(
+                    self.config.end_date + timedelta(days=1),
+                    time.min,
+                    tzinfo=timezone.utc,
+                )
+                params["todate"] = int(end_dt.timestamp()) - 1
 
             try:
                 response = self.session.get(
@@ -107,6 +126,8 @@ class StackExchangeFetcher(BaseFetcher):
                 return
 
             yield items
+            pages_fetched += 1
 
             if not payload.get("has_more", False):
                 return
+            page += 1

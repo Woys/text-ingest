@@ -147,3 +147,22 @@ def test_follows_cursor_pagination(fake_response_factory, monkeypatch) -> None:
         lambda u, params, timeout: fake_response_factory(next(page_iter)),
     )
     assert len(list(fetcher.fetch_all())) == 2
+
+
+def test_unbounded_max_pages_follows_cursor_until_exhausted(
+    fake_response_factory, monkeypatch
+) -> None:
+    pages = [
+        {"results": [_make_work(id="W1")], "meta": {"next_cursor": "cursor-2"}},
+        {"results": [_make_work(id="W2")], "meta": {"next_cursor": None}},
+    ]
+    page_iter = iter(pages)
+    config = OpenAlexConfig(query="q", max_pages=None, per_page=1)
+    fetcher = OpenAlexFetcher(config)
+    monkeypatch.setattr(
+        fetcher.session,
+        "get",
+        lambda u, params, timeout: fake_response_factory(next(page_iter)),
+    )
+
+    assert len(list(fetcher.fetch_all())) == 2

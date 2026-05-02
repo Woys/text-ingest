@@ -89,7 +89,9 @@ class WikipediaFetcher(BaseFetcher):
         url = self.BASE_URL.format(lang=language)
         page_size = min(self.config.page_size, 50)
 
-        for page in range(self.config.max_pages):
+        pages_fetched = 0
+        page = 0
+        while not self._page_limit_reached(pages_fetched):
             params: dict[str, Any] = {
                 "action": "query",
                 "list": "search",
@@ -159,3 +161,5 @@ class WikipediaFetcher(BaseFetcher):
                 )
 
             yield enriched
+            pages_fetched += 1
+            page += 1

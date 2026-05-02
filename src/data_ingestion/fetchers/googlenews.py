@@ -71,7 +71,16 @@ class GoogleNewsFetcher(BaseFetcher):
         return None
 
     def fetch_pages(self) -> Iterator[list[dict[str, Any]]]:
-        query = quote_plus(self.config.query or "")
+        from datetime import timedelta
+
+        query_parts = [self.config.query] if self.config.query else []
+        if self.config.start_date is not None:
+            query_parts.append(f"after:{self.config.start_date.isoformat()}")
+        if self.config.end_date is not None:
+            before_date = self.config.end_date + timedelta(days=1)
+            query_parts.append(f"before:{before_date.isoformat()}")
+
+        query = quote_plus(" ".join(query_parts))
         url = (
             f"{self.BASE_URL}?q={query}&hl={self.config.hl}&gl={self.config.gl}"
             f"&ceid={self.config.ceid}"
@@ -96,17 +105,28 @@ class GoogleNewsFetcher(BaseFetcher):
             return
 
         items: list[dict[str, Any]] = []
-        for element in item_elements[: self.config.page_size]:
-            items.append(
-                {
-                    "title": element.findtext("title"),
-                    "link": element.findtext("link"),
-                    "guid": element.findtext("guid"),
-                    "pubDate": element.findtext("pubDate"),
-                    "description": element.findtext("description"),
-                    "language": channel_language or self.config.hl,
-                }
-            )
+        for element in item_elements:
+            item = {
+                "title": element.findtext("title"),
+                "link": element.findtext("link"),
+                "guid": element.findtext("guid"),
+                "pubDate": element.findtext("pubDate"),
+                "description": element.findtext("description"),
+                "language": channel_language or self.config.hl,
+            }
+            published_date = self._parse_date(item["pubDate"])
+            if self.config.start_date is not None and (
+                published_date is None or published_date < self.config.start_date
+            ):
+                continue
+            if self.config.end_date is not None and (
+                published_date is None or published_date > self.config.end_date
+            ):
+                continue
+
+            items.append(item)
+            if len(items) >= self.config.page_size:
+                break
 
         if items:
             yield items

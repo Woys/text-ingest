@@ -13,6 +13,10 @@ class FetcherError(IngestionError):
     """Raised when a fetcher cannot retrieve or parse data."""
 
 
+class QuotaExceededError(FetcherError):
+    """Raised before making a request that would exceed a configured quota."""
+
+
 class SinkError(IngestionError):
     """Raised when a sink cannot persist output."""
 

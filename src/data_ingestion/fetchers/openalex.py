@@ -129,7 +129,8 @@ class OpenAlexFetcher(BaseFetcher):
         if self.config.http.email:
             params["mailto"] = self.config.http.email
 
-        for _page in range(1, self.config.max_pages + 1):
+        pages_fetched = 0
+        while not self._page_limit_reached(pages_fetched):
             try:
                 response = self.session.get(
                     self.BASE_URL,
@@ -146,6 +147,7 @@ class OpenAlexFetcher(BaseFetcher):
                 return
 
             yield results
+            pages_fetched += 1
 
             next_cursor = payload.get("meta", {}).get("next_cursor")
             if not next_cursor:

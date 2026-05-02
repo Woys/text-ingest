@@ -51,6 +51,28 @@ def test_fetch_pages_success(monkeypatch) -> None:
     assert [item["question_id"] for item in pages[0]] == [1, 2]
 
 
+def test_fetch_pages_sends_date_range_params(monkeypatch) -> None:
+    fetcher = StackExchangeFetcher(
+        StackExchangeConfig(
+            query="python",
+            max_pages=1,
+            start_date=date(2026, 3, 10),
+            end_date=date(2026, 3, 10),
+        )
+    )
+    payload = {"items": [{"question_id": 1}], "has_more": False}
+
+    def mock_get(url, params, **kwargs):
+        del url, kwargs
+        assert params["fromdate"] == 1773100800
+        assert params["todate"] == 1773187199
+        return _Resp(payload)
+
+    monkeypatch.setattr(fetcher.session, "get", mock_get)
+    pages = list(fetcher.fetch_pages())
+    assert len(pages) == 1
+
+
 def test_fetch_pages_wraps_request_error(monkeypatch) -> None:
     fetcher = StackExchangeFetcher(StackExchangeConfig(query="python", max_pages=1))
 

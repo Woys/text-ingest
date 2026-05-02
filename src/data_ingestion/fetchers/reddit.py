@@ -76,7 +76,9 @@ class RedditFetcher(BaseFetcher):
 
     def fetch_pages(self) -> Iterator[list[dict[str, Any]]]:
         after: str | None = None
-        for page in range(self.config.max_pages):
+        pages_fetched = 0
+        page = 0
+        while not self._page_limit_reached(pages_fetched):
             params: dict[str, Any] = {
                 "q": self.config.query,
                 "sort": self.config.sort,
@@ -114,7 +116,9 @@ class RedditFetcher(BaseFetcher):
                 {**child.get("data", {}), "lang": "en"} for child in children
             ]
             yield items
+            pages_fetched += 1
 
             after = payload.get("data", {}).get("after")
             if not after:
                 return
+            page += 1

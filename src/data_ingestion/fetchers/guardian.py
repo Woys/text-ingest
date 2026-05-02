@@ -70,7 +70,9 @@ class GuardianFetcher(BaseFetcher):
         return "en"
 
     def fetch_pages(self) -> Iterator[list[dict[str, Any]]]:
-        for page in range(1, self.config.max_pages + 1):
+        pages_fetched = 0
+        page = 1
+        while not self._page_limit_reached(pages_fetched):
             params: dict[str, Any] = {
                 "q": self.config.query,
                 "api-key": self.config.api_key,
@@ -113,6 +115,8 @@ class GuardianFetcher(BaseFetcher):
 
             enriched = [{**item, "lang": "en"} for item in results]
             yield enriched
+            pages_fetched += 1
 
             if page >= content.get("pages", 0):
                 return
+            page += 1

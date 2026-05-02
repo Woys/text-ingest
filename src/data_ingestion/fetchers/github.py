@@ -77,7 +77,9 @@ class GitHubFetcher(BaseFetcher):
         return None
 
     def fetch_pages(self) -> Iterator[list[dict[str, Any]]]:
-        for page in range(1, self.config.max_pages + 1):
+        pages_fetched = 0
+        page = 1
+        while not self._page_limit_reached(pages_fetched):
             params: dict[str, Any] = {
                 "q": self.config.query,
                 "sort": self.config.sort,
@@ -108,6 +110,8 @@ class GitHubFetcher(BaseFetcher):
                 return
 
             yield items
+            pages_fetched += 1
 
             if len(items) < self.config.per_page:
                 return
+            page += 1
