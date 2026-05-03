@@ -295,13 +295,28 @@ def analyze_topic_trends(
     ref_date = reference_date or datetime.now(timezone.utc).date()
     lookback_start = ref_date - timedelta(days=lookback_days - 1)
 
+    # ⚡ Bolt Optimization: Push date bounds down into search_industry_export.
+    # This avoids expensive full-text extraction and substring matching
+    # on records that are outside the requested lookback window.
+    eff_start = lookback_start
+    if start_date:
+        p_start = _parse_date_value(start_date)
+        if p_start and p_start > eff_start:
+            eff_start = p_start
+
+    eff_end = ref_date
+    if end_date:
+        p_end = _parse_date_value(end_date)
+        if p_end and p_end < eff_end:
+            eff_end = p_end
+
     matched = search_industry_export(
         input_file,
         topic_query=topic_query,
         text_query=text_query,
         sources=sources,
-        start_date=start_date,
-        end_date=end_date,
+        start_date=eff_start.isoformat(),
+        end_date=eff_end.isoformat(),
         include_raw_payload=include_raw_payload,
         limit=None,
     )
