@@ -67,6 +67,11 @@ class DataDumperPipeline:
             FullTextResolver() if self.config.runtime.enrich_full_text else None
         )
 
+        # Cache to prevent redundant parsing and casting of topic configs per record
+        self._fetcher_topic_configs: dict[
+            int, tuple[list[str], list[str], str | None]
+        ] = {}
+
         logger.info(
             "Pipeline initialized fail_fast=%s enrich_full_text=%s "
             "sink_write_batch_size=%d transforms_enabled=%s resume=%s checkpoint=%s",
@@ -166,9 +171,23 @@ class DataDumperPipeline:
         fetcher: BaseFetcher,
         record: NormalizedRecord,
     ) -> tuple[bool, str | None]:
-        fetcher_config = getattr(fetcher, "config", None)
-        include_terms: list[str] = list(getattr(fetcher_config, "topic_include", []))
-        exclude_terms: list[str] = list(getattr(fetcher_config, "topic_exclude", []))
+        # Fetch cached config to avoid repeated list() casts and getattr on every record
+        fetcher_id = id(fetcher)
+        if fetcher_id not in self._fetcher_topic_configs:
+            fetcher_config = getattr(fetcher, "config", None)
+            inc = list(getattr(fetcher_config, "topic_include", []))
+            exc = list(getattr(fetcher_config, "topic_exclude", []))
+
+            query = getattr(fetcher_config, "query", None)
+            q_val = None
+            if isinstance(query, str):
+                stripped_query = query.strip()
+                if stripped_query:
+                    q_val = stripped_query.lower()
+
+            self._fetcher_topic_configs[fetcher_id] = (inc, exc, q_val)
+
+        include_terms, exclude_terms, q_val = self._fetcher_topic_configs[fetcher_id]
 
         matched_topic: str | None = None
 
@@ -200,12 +219,13 @@ class DataDumperPipeline:
             return True, matched_topic
 
         # Prefer topic inferred by fetchers over query fallback.
-        if isinstance(record.topic, str) and record.topic.strip():
-            return True, record.topic.strip()
+        if isinstance(record.topic, str):
+            stripped_topic = record.topic.strip()
+            if stripped_topic:
+                return True, stripped_topic
 
-        query = getattr(fetcher_config, "query", None)
-        if isinstance(query, str) and query.strip():
-            return True, query.strip().lower()
+        if q_val:
+            return True, q_val
 
         return True, None
 
