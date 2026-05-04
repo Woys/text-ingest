@@ -1,5 +1,5 @@
 PYTHON  ?= python
-SRC      = src tests examples
+SRC      = src tests
 
 .PHONY: help install format lint docs-check typecheck test build clean all
 
