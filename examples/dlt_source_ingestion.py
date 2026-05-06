@@ -230,7 +230,7 @@ def guardian_content(query: str, limit: int = MAX_ITEMS) -> list[dict[str, Any]]
 def run_dlt() -> None:
     try:
         import dlt
-    except ImportError as exc:  # pragma: no cover - runtime guidance
+    except ImportError as exc:
         raise RuntimeError(
             "dlt is not installed. Install with: pip install dlt"
         ) from exc

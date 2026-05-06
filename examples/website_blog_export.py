@@ -5,18 +5,17 @@ from __future__ import annotations
 import os
 from typing import Any
 
-# Prevent unrelated global Pydantic plugins from polluting local script output.
 os.environ.setdefault("PYDANTIC_DISABLE_PLUGINS", "__all__")
 
 from data_ingestion.pipeline import run_to_jsonl
 
 OUTPUT_PATH = "data/website_blog.jsonl"
-QUERY = None  # e.g. "s3"
+QUERY = None
 START_DATE = None
 END_DATE = None
 MAX_ITEMS_PER_SITE = 50
 
-# Sources with known working RSS/Atom feeds (direct or via autodiscovery).
+
 WEBSITE_SOURCES: list[dict[str, str]] = [
     {"feed_url": "https://aws.amazon.com/blogs/aws/feed/"},
     {"feed_url": "https://developers.facebook.com/blog/feed/"},
@@ -32,7 +31,7 @@ WEBSITE_SOURCES: list[dict[str, str]] = [
     {"site_url": "https://developers.reddit.com/docs/blog"},
 ]
 
-# Sources for pages without RSS/Atom feeds.
+
 WEBSITE_HTML_SOURCES: list[dict[str, Any]] = [
     {
         "site_url": "https://ai.google.dev/gemini-api/docs/changelog",

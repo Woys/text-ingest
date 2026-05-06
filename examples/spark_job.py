@@ -65,7 +65,7 @@ rows = [
     )
 ]
 
-# User still controls Spark schema/table behavior; transform logic stays declarative.
+
 df = records_to_dataframe(spark, rows)
 
 print("Rows after declarative transforms:", len(rows))
