@@ -34,10 +34,10 @@ class NormalizedRecord(BaseModel):
 
     def to_output_dict(self, *, include_raw_payload: bool = True) -> dict[str, Any]:
         # Optimization: __dict__.copy() is significantly faster than model_dump()
-        # for generating the output row, reducing per-record JSON serialization overhead.
-        # WARNING: This optimization assumes a flat model. Adding nested Pydantic models,
-        # computed fields, aliases, or `@field_serializer` decorators to this class in
-        # the future will NOT be serialized correctly by this method.
+        # for generating the output row, reducing per-record serialization overhead.
+        # WARNING: This optimization assumes a flat model. Adding nested Pydantic
+        # models, computed fields, aliases, or `@field_serializer` decorators
+        # to this class in the future will NOT be serialized correctly here.
         row = self.__dict__.copy()
         row["record_type"] = row["record_type"].value
         if not include_raw_payload:
