@@ -1,0 +1,3 @@
+## 2026-05-07 - [Optimization of NormalizedRecord.to_output_dict]
+**Learning:** Pydantic's `model_dump(mode="python")` is convenient but can have significant overhead when called repeatedly in a tight loop for simple dictionary generation, particularly on flat models where validation has already occurred.
+**Action:** For performance-critical data pipelines that emit simple, flat models to outputs like JSONL or Pandas Dataframes, bypass `model_dump` by directly copying the instance's dictionary (`self.__dict__.copy()`). Add clear comments warning that this brittle optimization assumes a flat model structure and will fail for nested Pydantic models or fields requiring custom serialization logic.
