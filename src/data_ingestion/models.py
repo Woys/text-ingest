@@ -40,12 +40,12 @@ class NormalizedRecord(BaseModel):
         return row
 
     def to_json_line(self, *, include_raw_payload: bool = True) -> str:
-        import json
-
-        return json.dumps(
-            self.to_output_dict(include_raw_payload=include_raw_payload),
-            default=str,
-        )
+        # Optimization: use pydantic's built-in fast JSON serialization instead
+        # of converting to python dict first and then calling json.dumps().
+        # This speeds up serialization significantly for large streams.
+        if include_raw_payload:
+            return self.model_dump_json()
+        return self.model_dump_json(exclude={"raw_payload"})
 
 
 class FullTextDocument(BaseModel):
