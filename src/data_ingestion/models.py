@@ -33,19 +33,17 @@ class NormalizedRecord(BaseModel):
     raw_payload: dict[str, Any] = Field(default_factory=dict)
 
     def to_output_dict(self, *, include_raw_payload: bool = True) -> dict[str, Any]:
-        row = self.model_dump(mode="python")
+        if include_raw_payload:
+            row = self.model_dump(mode="python")
+        else:
+            row = self.model_dump(mode="python", exclude={"raw_payload"})
         row["record_type"] = row["record_type"].value
-        if not include_raw_payload:
-            row.pop("raw_payload", None)
         return row
 
     def to_json_line(self, *, include_raw_payload: bool = True) -> str:
-        import json
-
-        return json.dumps(
-            self.to_output_dict(include_raw_payload=include_raw_payload),
-            default=str,
-        )
+        if include_raw_payload:
+            return self.model_dump_json()
+        return self.model_dump_json(exclude={"raw_payload"})
 
 
 class FullTextDocument(BaseModel):
