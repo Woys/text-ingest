@@ -33,19 +33,17 @@ class NormalizedRecord(BaseModel):
     raw_payload: dict[str, Any] = Field(default_factory=dict)
 
     def to_output_dict(self, *, include_raw_payload: bool = True) -> dict[str, Any]:
-        row = self.model_dump(mode="python")
+        exclude = None if include_raw_payload else {"raw_payload"}
+        row = self.model_dump(mode="python", exclude=exclude)
         row["record_type"] = row["record_type"].value
-        if not include_raw_payload:
-            row.pop("raw_payload", None)
         return row
 
     def to_json_line(self, *, include_raw_payload: bool = True) -> str:
-        import json
-
-        return json.dumps(
-            self.to_output_dict(include_raw_payload=include_raw_payload),
-            default=str,
-        )
+        # Performance optimization: Use Pydantic's native JSON serialization
+        # which is implemented in Rust and is significantly faster than dumping
+        # to a Python dict and using the stdlib json module.
+        exclude = None if include_raw_payload else {"raw_payload"}
+        return self.model_dump_json(exclude=exclude)
 
 
 class FullTextDocument(BaseModel):

@@ -1,0 +1,3 @@
+## 2024-06-25 - Use Pydantic Native JSON Serialization for Performance
+**Learning:** In projects that serialize a high volume of Pydantic models to JSON (such as in `data_ingestion` outputs), Pydantic's native `model_dump_json` and `model_dump` methods with their `exclude` arguments offer a significant performance boost over mutating standard python dicts or serializing to dict and using the `json` module. They are implemented in Rust.
+**Action:** Always prefer `model_dump_json(exclude=...)` and `model_dump(exclude=...)` instead of explicitly removing fields from dictionary and then manually serializing.
