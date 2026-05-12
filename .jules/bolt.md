@@ -1,0 +1,3 @@
+## 2026-05-12 - Pydantic JSON Serialization Speedup
+**Learning:** Pydantic v2's native Rust-backed JSON serialization `model_dump_json()` is dramatically faster (~3.6x) than using `model_dump(mode="python")` followed by dictionary manipulations and the standard library `json.dumps()`. However, you must carefully preserve the default `exclude_none=False` behavior (unless the previous implementation explicitly excluded None) because downstream schema tests strictly check for the presence of keys even if their values are None.
+**Action:** Always prefer `model_dump_json()` with the `exclude` argument instead of mutating dictionaries when outputting JSON. Double check schema tests for expected `None` keys to avoid regressions.
