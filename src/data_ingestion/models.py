@@ -33,19 +33,18 @@ class NormalizedRecord(BaseModel):
     raw_payload: dict[str, Any] = Field(default_factory=dict)
 
     def to_output_dict(self, *, include_raw_payload: bool = True) -> dict[str, Any]:
-        row = self.model_dump(mode="python")
+        # Optimization: Use Pydantic v2 native model_dump with exclude sets
+        # instead of full dictionary creation and mutation.
+        exclude = {"raw_payload"} if not include_raw_payload else None
+        row = self.model_dump(mode="python", exclude=exclude)
         row["record_type"] = row["record_type"].value
-        if not include_raw_payload:
-            row.pop("raw_payload", None)
         return row
 
     def to_json_line(self, *, include_raw_payload: bool = True) -> str:
-        import json
-
-        return json.dumps(
-            self.to_output_dict(include_raw_payload=include_raw_payload),
-            default=str,
-        )
+        # Optimization: Use Pydantic v2 native model_dump_json directly.
+        # Bypasses intermediate dictionary creation and slow json.dumps().
+        exclude = {"raw_payload"} if not include_raw_payload else None
+        return self.model_dump_json(exclude=exclude)
 
 
 class FullTextDocument(BaseModel):

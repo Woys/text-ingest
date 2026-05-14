@@ -1,0 +1,3 @@
+## 2024-05-14 - Pydantic v2 Serialization Performance
+**Learning:** In a codebase using Pydantic v2 extensively, relying on manual dictionary generation and mutation (e.g. `model_dump()` followed by popping keys) and the standard Python `json.dumps()` is significantly slower than utilizing Pydantic's native features.
+**Action:** When creating JSON strings from Pydantic v2 models, always prefer `model_dump_json(exclude=...)` directly over `json.dumps(model.model_dump())` or `json.dumps(model.to_dict())`. For dictionary outputs, use `model_dump(exclude=...)` instead of popping keys dynamically. This avoids intermediate garbage collection and leverages Pydantic's underlying Rust core (pydantic-core) for maximum performance.
