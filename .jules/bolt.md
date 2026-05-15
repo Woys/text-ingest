@@ -1,0 +1,3 @@
+## 2024-05-15 - Pydantic JSON dump performance
+**Learning:** For Pydantic v2 models, using native `model_dump_json()` with `exclude` sets is 5-6x faster than converting to dict with `model_dump()` and passing it to standard library `json.dumps()`. However, the downstream sinks (like CSV and Parquet) still expect standard dictionaries and sometimes need specific fields (like `authors` or `raw_payload`) to be stringified manually to avoid schema or encoding issues.
+**Action:** Replace `json.dumps(record.to_output_dict(...))` with `record.model_dump_json(exclude=...)` in `to_json_line()` where full JSON strings are generated. Do not replace `to_output_dict` usages in dict-based sinks without testing stringification carefully.
