@@ -208,7 +208,9 @@ def test_pipeline_reuses_topic_config_per_fetcher(tmp_path) -> None:
         "openalex",
         [
             NormalizedRecord(source="openalex", title="Cancer update", raw_payload={}),
-            NormalizedRecord(source="openalex", title="Cancer progress", raw_payload={}),
+            NormalizedRecord(
+                source="openalex", title="Cancer progress", raw_payload={}
+            ),
         ],
         config=config,
     )
