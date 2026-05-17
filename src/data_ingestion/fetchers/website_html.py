@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import functools
 import html
 import re
 from datetime import datetime, timezone
@@ -91,6 +92,7 @@ class WebsiteHtmlFetcher(BaseFetcher):
         return "website_html"
 
     @staticmethod
+    @functools.lru_cache(maxsize=128)
     def _parse_date(raw: str | None) -> date | None:
         if not raw:
             return None
@@ -118,10 +120,15 @@ class WebsiteHtmlFetcher(BaseFetcher):
 
         return None
 
-    def _extract_meta(self, page_html: str, name: str) -> str | None:
-        pattern = re.compile(
+    @staticmethod
+    @functools.lru_cache(maxsize=32)
+    def _meta_pattern(name: str) -> re.Pattern[str]:
+        return re.compile(
             rf"""(?is)<meta[^>]+(?:name|property)\s*=\s*["']{re.escape(name)}["'][^>]+content\s*=\s*["']([^"']+)["']""",
         )
+
+    def _extract_meta(self, page_html: str, name: str) -> str | None:
+        pattern = self._meta_pattern(name)
         match = pattern.search(page_html)
         if match:
             return _clean_text(match.group(1))
