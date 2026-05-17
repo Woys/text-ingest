@@ -6,7 +6,7 @@ from datetime import date, datetime, timezone
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 
 class RecordType(str, Enum):
@@ -39,13 +39,15 @@ class NormalizedRecord(BaseModel):
             row.pop("raw_payload", None)
         return row
 
-    def to_json_line(self, *, include_raw_payload: bool = True) -> str:
-        import json
+    @field_serializer("published_date", "fetched_at", mode="plain", when_used="json")
+    def serialize_dates_json(self, value: date | datetime | None) -> str | None:
+        if value is None:
+            return None
+        return str(value)
 
-        return json.dumps(
-            self.to_output_dict(include_raw_payload=include_raw_payload),
-            default=str,
-        )
+    def to_json_line(self, *, include_raw_payload: bool = True) -> str:
+        exclude = None if include_raw_payload else {"raw_payload"}
+        return self.model_dump_json(exclude=exclude)
 
 
 class FullTextDocument(BaseModel):
