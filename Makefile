@@ -26,7 +26,7 @@ typecheck:      ## run mypy static analysis
 	mypy src
 
 test:           ## run the test suite with coverage
-	PYDANTIC_DISABLE_PLUGINS=__all__ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p pytest_cov --cov=data_ingestion --cov-report=term-missing
+	PYDANTIC_DISABLE_PLUGINS=__all__ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 $(PYTHON) -m pytest -p pytest_cov --cov=data_ingestion --cov-report=term-missing
 
 build:          ## build distribution packages
 	$(PYTHON) -m build
