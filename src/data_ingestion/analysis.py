@@ -294,14 +294,25 @@ def analyze_topic_trends(
 
     ref_date = reference_date or datetime.now(timezone.utc).date()
     lookback_start = ref_date - timedelta(days=lookback_days - 1)
+    search_start = lookback_start
+    if start_date:
+        parsed_start = _parse_date_value(start_date)
+        if parsed_start is not None and parsed_start > search_start:
+            search_start = parsed_start
+
+    search_end = ref_date
+    if end_date:
+        parsed_end = _parse_date_value(end_date)
+        if parsed_end is not None and parsed_end < search_end:
+            search_end = parsed_end
 
     matched = search_industry_export(
         input_file,
         topic_query=topic_query,
         text_query=text_query,
         sources=sources,
-        start_date=start_date,
-        end_date=end_date,
+        start_date=search_start.isoformat(),
+        end_date=search_end.isoformat(),
         include_raw_payload=include_raw_payload,
         limit=None,
     )

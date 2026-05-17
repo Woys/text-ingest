@@ -66,6 +66,9 @@ class DataDumperPipeline:
         self.full_text_resolver = (
             FullTextResolver() if self.config.runtime.enrich_full_text else None
         )
+        self._fetcher_topic_configs: dict[
+            int, tuple[list[str], list[str], str | None]
+        ] = {}
 
         logger.info(
             "Pipeline initialized fail_fast=%s enrich_full_text=%s "
@@ -166,9 +169,28 @@ class DataDumperPipeline:
         fetcher: BaseFetcher,
         record: NormalizedRecord,
     ) -> tuple[bool, str | None]:
-        fetcher_config = getattr(fetcher, "config", None)
-        include_terms: list[str] = list(getattr(fetcher_config, "topic_include", []))
-        exclude_terms: list[str] = list(getattr(fetcher_config, "topic_exclude", []))
+        fetcher_id = id(fetcher)
+        if fetcher_id not in self._fetcher_topic_configs:
+            fetcher_config = getattr(fetcher, "config", None)
+            include_terms = list(getattr(fetcher_config, "topic_include", []))
+            exclude_terms = list(getattr(fetcher_config, "topic_exclude", []))
+
+            query = getattr(fetcher_config, "query", None)
+            query_fallback: str | None = None
+            if isinstance(query, str):
+                query = query.strip()
+                if query:
+                    query_fallback = query.lower()
+
+            self._fetcher_topic_configs[fetcher_id] = (
+                include_terms,
+                exclude_terms,
+                query_fallback,
+            )
+
+        include_terms, exclude_terms, query_fallback = self._fetcher_topic_configs[
+            fetcher_id
+        ]
 
         matched_topic: str | None = None
 
@@ -200,12 +222,13 @@ class DataDumperPipeline:
             return True, matched_topic
 
         # Prefer topic inferred by fetchers over query fallback.
-        if isinstance(record.topic, str) and record.topic.strip():
-            return True, record.topic.strip()
+        if isinstance(record.topic, str):
+            record_topic = record.topic.strip()
+            if record_topic:
+                return True, record_topic
 
-        query = getattr(fetcher_config, "query", None)
-        if isinstance(query, str) and query.strip():
-            return True, query.strip().lower()
+        if query_fallback:
+            return True, query_fallback
 
         return True, None
 

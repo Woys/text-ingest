@@ -52,6 +52,12 @@ def test_normalize_reconstructs_abstract(fetcher) -> None:
     assert rec.abstract == "Quick brown fox"
 
 
+def test_normalize_reconstructs_sparse_abstract(fetcher) -> None:
+    work = _make_work(abstract_inverted_index={"Quick": [0], "fox": [3]})
+    rec = fetcher.normalize(work)
+    assert rec.abstract == "Quick fox"
+
+
 def test_normalize_topic_falls_back_to_concepts(fetcher) -> None:
     work = _make_work(
         primary_topic=None,

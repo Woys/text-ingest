@@ -44,6 +44,28 @@ class _FailingFetcher:
         yield  # makes it a generator
 
 
+class _CountingTopicConfig:
+    def __init__(self) -> None:
+        self.include_reads = 0
+        self.exclude_reads = 0
+        self.query_reads = 0
+
+    @property
+    def topic_include(self) -> list[str]:
+        self.include_reads += 1
+        return ["cancer"]
+
+    @property
+    def topic_exclude(self) -> list[str]:
+        self.exclude_reads += 1
+        return []
+
+    @property
+    def query(self) -> str:
+        self.query_reads += 1
+        return "oncology"
+
+
 def _make_sink(tmp_path):
     return JsonlSink(
         JsonlSinkConfig(output_file=str(tmp_path / "out.jsonl"), append=False)
@@ -177,6 +199,26 @@ def test_pipeline_applies_topic_filters(tmp_path) -> None:
     assert len(records) == 1
     assert records[0]["external_id"] == "1"
     assert records[0]["topic"] == "cancer"
+
+
+def test_pipeline_reuses_topic_config_per_fetcher(tmp_path) -> None:
+    pipeline = DataDumperPipeline(sink=_make_sink(tmp_path))
+    config = _CountingTopicConfig()
+    fetcher = _FakeFetcher(
+        "openalex",
+        [
+            NormalizedRecord(source="openalex", title="Cancer update", raw_payload={}),
+            NormalizedRecord(source="openalex", title="Cancer progress", raw_payload={}),
+        ],
+        config=config,
+    )
+
+    summary = pipeline.run([fetcher])
+
+    assert summary.total_records == 2
+    assert config.include_reads == 1
+    assert config.exclude_reads == 1
+    assert config.query_reads == 1
 
 
 def test_fail_fast_raises_pipeline_error(tmp_path) -> None:

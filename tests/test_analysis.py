@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from datetime import date
 
+import data_ingestion.analysis as analysis_module
 from data_ingestion.analysis import (
     analyze_topic_trends,
     iter_export_rows,
@@ -90,3 +91,44 @@ def test_analyze_topic_trends_growth(tmp_path) -> None:
     assert trend["trend_status"] in {"emerging", "up", "flat", "down"}
     assert isinstance(trend["daily_counts"], list)
     assert len(trend["daily_counts"]) == 7
+
+
+def test_analyze_topic_trends_filters_dates_before_text_scan(
+    tmp_path, monkeypatch
+) -> None:
+    path = tmp_path / "records.jsonl"
+    rows = [
+        {
+            "source": "old",
+            "title": "Data engineering platform",
+            "topic": "data engineering",
+            "published_date": "2026-01-01",
+        },
+        {
+            "source": "recent",
+            "title": "Data engineering platform",
+            "topic": "data engineering",
+            "published_date": "2026-03-14",
+        },
+    ]
+    path.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+
+    scanned_sources: list[str] = []
+    original_row_search_text = analysis_module._row_search_text
+
+    def track_row_search_text(row, *, include_raw_payload):
+        scanned_sources.append(str(row["source"]))
+        return original_row_search_text(row, include_raw_payload=include_raw_payload)
+
+    monkeypatch.setattr(analysis_module, "_row_search_text", track_row_search_text)
+
+    trend = analyze_topic_trends(
+        path,
+        topic_query="data engineering",
+        text_query="platform",
+        lookback_days=7,
+        reference_date=date(2026, 3, 15),
+    )
+
+    assert trend["matched_records"] == 1
+    assert scanned_sources == ["recent"]

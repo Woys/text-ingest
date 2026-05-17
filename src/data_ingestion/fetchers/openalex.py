@@ -41,10 +41,21 @@ class OpenAlexFetcher(BaseFetcher):
     ) -> str | None:
         if not inverted_index:
             return None
-        position_word = {
-            pos: word for word, positions in inverted_index.items() for pos in positions
-        }
-        return " ".join(position_word[p] for p in sorted(position_word))
+
+        max_position = -1
+        for positions in inverted_index.values():
+            if positions:
+                max_position = max(max_position, max(positions))
+
+        if max_position < 0:
+            return ""
+
+        words: list[str | None] = [None] * (max_position + 1)
+        for word, positions in inverted_index.items():
+            for position in positions:
+                words[position] = word
+
+        return " ".join(word for word in words if word is not None)
 
     @staticmethod
     def _extract_topic(item: dict[str, Any]) -> str | None:
